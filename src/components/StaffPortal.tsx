@@ -28,22 +28,24 @@ interface AircraftStockRowProps {
   key?: React.Key;
   aircraft: Aircraft;
   inventoryItem: AircraftInventory;
-  onUpdate: (id: string, stockCount: number, priceOverride?: number) => void;
+  onUpdate: (id: string, stockCount: number, priceOverride?: number, isVisible?: boolean) => void;
   onDelete: (id: string) => void;
 }
 
 function AircraftStockRow({ aircraft, inventoryItem, onUpdate, onDelete }: AircraftStockRowProps) {
   const [stock, setStock] = React.useState(inventoryItem?.stockCount ?? 0);
   const [priceOverride, setPriceOverride] = React.useState(inventoryItem?.priceOverride ?? "");
+  const [isVisible, setIsVisible] = React.useState(inventoryItem?.isVisible !== false);
   const [isSaved, setIsSaved] = React.useState(false);
 
   React.useEffect(() => {
     setStock(inventoryItem?.stockCount ?? 0);
     setPriceOverride(inventoryItem?.priceOverride ?? "");
+    setIsVisible(inventoryItem?.isVisible !== false);
   }, [inventoryItem]);
 
   const handleSave = () => {
-    onUpdate(aircraft.id, Number(stock), priceOverride !== "" ? Number(priceOverride) : undefined);
+    onUpdate(aircraft.id, Number(stock), priceOverride !== "" ? Number(priceOverride) : undefined, isVisible);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
@@ -51,7 +53,7 @@ function AircraftStockRow({ aircraft, inventoryItem, onUpdate, onDelete }: Aircr
   const isCustom = aircraft.id.startsWith("custom-");
 
   return (
-    <tr className="border-b border-slate-850/60 hover:bg-slate-900/20 transition-all">
+    <tr className="border-b border-slate-850/60 hover:bg-slate-900/20 transition-all font-sans text-left">
       <td className="py-3 px-4 font-bold text-[#ea580c] select-all max-w-[120px] truncate" title={aircraft.id}>
         {aircraft.id}
       </td>
@@ -78,6 +80,15 @@ function AircraftStockRow({ aircraft, inventoryItem, onUpdate, onDelete }: Aircr
       </td>
       <td className="py-3 px-4 text-slate-400">
         €{aircraft.basePrice.toLocaleString("nl-NL")}
+      </td>
+      <td className="py-3 px-4 text-center">
+        <input
+          type="checkbox"
+          checked={isVisible}
+          onChange={(e) => setIsVisible(e.target.checked)}
+          className="rounded border-slate-800 bg-slate-900 text-[#ea580c] focus:ring-[#ea580c] h-4.5 w-4.5 cursor-pointer accent-[#ea580c] mx-auto block"
+          title="Vink aan om dit model zichtbaar te maken in de catalogus"
+        />
       </td>
       <td className="py-3 px-4">
         <input
@@ -275,7 +286,7 @@ export default function StaffPortal({
     setPortalAlertMessage("Vliegtuig is succesvol uit de catalogus verwijderd.");
   };
 
-  const handleUpdateSingleAircraftStock = (aircraftId: string, stock: number, priceOverride?: number) => {
+  const handleUpdateSingleAircraftStock = (aircraftId: string, stock: number, priceOverride?: number, isVisible?: boolean) => {
     const exists = inventory.some(i => i.aircraftId === aircraftId);
     let nextInv: AircraftInventory[];
     if (exists) {
@@ -285,7 +296,8 @@ export default function StaffPortal({
             ...item,
             stockCount: stock,
             status: stock > 0 ? "Op voorraad" as const : "Uitverkocht" as const,
-            priceOverride: priceOverride ? Number(priceOverride) : undefined
+            priceOverride: priceOverride ? Number(priceOverride) : undefined,
+            isVisible: isVisible !== undefined ? isVisible : item.isVisible
           };
         }
         return item;
@@ -297,14 +309,16 @@ export default function StaffPortal({
           aircraftId,
           stockCount: stock,
           status: stock > 0 ? "Op voorraad" as const : "Uitverkocht" as const,
-          priceOverride: priceOverride ? Number(priceOverride) : undefined
+          priceOverride: priceOverride ? Number(priceOverride) : undefined,
+          isVisible: isVisible !== undefined ? isVisible : true
         }
       ];
     }
     // Set appropriate status based on inventory stock
     const cleanedInv = nextInv.map(element => ({
       ...element,
-      status: element.stockCount > 0 ? ("Op voorraad" as const) : ("Uitverkocht" as const)
+      status: element.stockCount > 0 ? ("Op voorraad" as const) : ("Uitverkocht" as const),
+      isVisible: element.isVisible !== false // preserve visibility
     }));
     onUpdateInventory(cleanedInv);
   };
@@ -1653,11 +1667,12 @@ export default function StaffPortal({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="border-b border-slate-800 text-slate-500 text-[10px] uppercase font-bold">
+                      <tr className="border-b border-slate-800 text-slate-500 text-[10px] uppercase font-bold text-left">
                         <th className="py-3 px-4">Model ID</th>
                         <th className="py-3 px-4">Toestelnaam</th>
                         <th className="py-3 px-4">Type</th>
                         <th className="py-3 px-4">Basisprijs</th>
+                        <th className="py-3 px-4 text-center">Zichtbaar</th>
                         <th className="py-3 px-4">Voorraad</th>
                         <th className="py-3 px-4">Verkoopprijs Actie (€)</th>
                         <th className="py-3 px-4 text-right">Acties</th>

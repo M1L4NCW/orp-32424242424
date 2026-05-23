@@ -26,7 +26,10 @@ export default function AircraftMarketplace({ logbook, onOrderAircraft, inventor
     { name: "Midnight Black", hex: "#0f172a" },
   ];
 
-  const currentList = aircraftList && aircraftList.length > 0 ? aircraftList : AIRCRAFT_LIST;
+  const currentList = (aircraftList && aircraftList.length > 0 ? aircraftList : AIRCRAFT_LIST).filter(air => {
+    const invItem = inventory?.find(i => i.aircraftId === air.id);
+    return !invItem || invItem.isVisible !== false;
+  });
 
   // Handle empty state gracefully to prevent crashes
   if (!currentList || currentList.length === 0) {

@@ -107,5 +107,6 @@ export interface AircraftInventory {
   stockCount: number;
   status: "Op voorraad" | "Gereserveerd" | "Uitverkocht";
   priceOverride?: number;
+  isVisible?: boolean;
 }
 
