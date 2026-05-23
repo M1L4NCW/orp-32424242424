@@ -2,7 +2,7 @@ import React from "react";
 import { 
   ShieldCheck, FileSpreadsheet, PlusCircle, Trash2, 
   Settings, UserCheck, HelpCircle, AlertCircle, FileText, CheckCircle, Plus, Image, Users, HelpCircle as HelpIcon,
-  Coins, TrendingUp, Percent, Award, Calendar
+  Coins, TrendingUp, Percent, Award, Calendar, Megaphone
 } from "lucide-react";
 import { IssuedLicense, AircraftInventory, Aircraft, StaffUser } from "../types";
 
@@ -15,6 +15,8 @@ interface StaffPortalProps {
   onUpdateInventory: (updated: AircraftInventory[]) => void;
   aircraftList: Aircraft[];
   onUpdateAircraftList: (updated: Aircraft[]) => void;
+  announcement: string;
+  onUpdateAnnouncement: (text: string) => void;
 }
 
 // Default staff accounts
@@ -135,7 +137,9 @@ export default function StaffPortal({
   inventory, 
   onUpdateInventory,
   aircraftList,
-  onUpdateAircraftList
+  onUpdateAircraftList,
+  announcement,
+  onUpdateAnnouncement
 }: StaffPortalProps) {
   
   // Accounts management
@@ -1438,6 +1442,38 @@ export default function StaffPortal({
                   </div>
                 )}
               </div>
+
+              {/* Row 4: Homepage Announcement Management for management */}
+              <div className="bg-slate-950 border border-slate-800/80 p-6 rounded-3xl">
+                <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
+                  <Megaphone className="h-5 w-5 text-[#ea580c]" />
+                  <h3 className="font-display font-semibold text-base text-white font-sans text-left">Homepagina Mededeling Beheer</h3>
+                </div>
+                <p className="text-xs text-slate-400 font-light mb-6">
+                  Stel hier een belangrijk bericht of mededeling in die direct bovenaan de startpagina (Home) wordt getoond aan alle piloten en bezoekers. Laat het veld leeg of klik op 'Wissen' om de mededeling te verbergen.
+                </p>
+                <div className="space-y-4">
+                  <textarea
+                    rows={3}
+                    placeholder="bijv: ✈️ OPEN DAG: Komende zondag vlieglessen met 50% korting! Bezoek onze Discord voor meer info."
+                    value={announcement}
+                    onChange={(e) => onUpdateAnnouncement(e.target.value)}
+                    className="w-full bg-[#020617] border border-slate-800 focus:border-[#ea580c] rounded-3xl p-4 text-xs text-slate-200 outline-none font-sans leading-relaxed transition-all"
+                  />
+                  {announcement.trim() && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => onUpdateAnnouncement("")}
+                        className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-mono font-bold uppercase rounded-xl transition-all cursor-pointer"
+                      >
+                        Mededeling Wissen
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
           );
         })()}

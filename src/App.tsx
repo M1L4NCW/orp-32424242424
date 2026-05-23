@@ -1,7 +1,7 @@
 import React from "react";
 import { 
   Plane, Compass, Wind, Award, Clock, ArrowRight, Gauge, 
-  MapPin, CheckCircle2, ShieldAlert, BookOpen, AlertCircle, Plus, Sparkles 
+  MapPin, CheckCircle2, ShieldAlert, BookOpen, AlertCircle, Plus, Sparkles, Megaphone 
 } from "lucide-react";
 
 import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft } from "./types";
@@ -42,6 +42,16 @@ export default function App() {
 
   // Success notifications
   const [transactionSuccess, setTransactionSuccess] = React.useState<string | null>(null);
+
+  // Home announcement message for management+
+  const [announcement, setAnnouncement] = React.useState<string>(() => {
+    return localStorage.getItem("@luchtvaart_oranjestad_announcement") || "";
+  });
+
+  const handleUpdateAnnouncement = (text: string) => {
+    setAnnouncement(text);
+    localStorage.setItem("@luchtvaart_oranjestad_announcement", text);
+  };
 
   // Auto-switch to staff tab if redirecting back from Discord with code parameter
   React.useEffect(() => {
@@ -95,7 +105,11 @@ export default function App() {
 
       const storedAircraft = localStorage.getItem(AIRCRAFT_LIST_KEY);
       if (storedAircraft) {
-        setAircraftList(JSON.parse(storedAircraft));
+        const parsed: Aircraft[] = JSON.parse(storedAircraft).filter(
+          (a: Aircraft) => !["cessna-172", "cirrus-sr22", "robinson-r44", "airbus-h135", "embraer-phenom"].includes(a.id)
+        );
+        setAircraftList(parsed);
+        localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(parsed));
       } else {
         setAircraftList(AIRCRAFT_LIST);
         localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(AIRCRAFT_LIST));
@@ -280,6 +294,26 @@ export default function App() {
               </div>
             </header>
 
+            {/* Management Announcement Banner */}
+            {announcement && announcement.trim() !== "" && (
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+                <div className="bg-[#ea580c]/5 border border-[#ea580c]/15 p-6 sm:p-8 rounded-3xl flex items-start gap-4 shadow-xl shadow-[#ea580c]/5 relative overflow-hidden group hover:border-[#ea580c]/35 transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-12 bg-gradient-to-bl from-[#ea580c]/5 to-transparent rounded-bl-full pointer-events-none"></div>
+                  <div className="p-3.5 bg-[#ea580c]/15 border border-[#ea580c]/10 rounded-2xl text-[#ea580c] shrink-0 mt-0.5 animate-bounce">
+                    <Megaphone className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1 text-left z-10">
+                    <span className="text-[9px] text-[#ea580c] font-mono tracking-widest uppercase font-bold bg-[#ea580c]/10 px-2.5 py-1 rounded-full border border-[#ea580c]/10">
+                      📢 Belangrijke Mededeling van Directie
+                    </span>
+                    <p className="text-white text-sm sm:text-base leading-relaxed font-sans font-medium pt-2 whitespace-pre-line">
+                      {announcement}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Aviation Academy Pillars section */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -343,6 +377,8 @@ export default function App() {
             onUpdateInventory={handleUpdateInventory}
             aircraftList={aircraftList}
             onUpdateAircraftList={handleUpdateAircraftList}
+            announcement={announcement}
+            onUpdateAnnouncement={handleUpdateAnnouncement}
           />
         )}
       </main>
