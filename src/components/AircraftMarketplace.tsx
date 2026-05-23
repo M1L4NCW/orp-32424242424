@@ -27,6 +27,41 @@ export default function AircraftMarketplace({ logbook, onOrderAircraft, inventor
   ];
 
   const currentList = aircraftList && aircraftList.length > 0 ? aircraftList : AIRCRAFT_LIST;
+
+  // Handle empty state gracefully to prevent crashes
+  if (!currentList || currentList.length === 0) {
+    return (
+      <div className="bg-slate-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Intro */}
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-[#ea580c] font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-[#ea580c]/10 rounded-full border border-[#ea580c]/10">
+              Showroom & Catalogus Oranjestad
+            </span>
+            <h1 className="font-display font-bold text-4xl mt-3 tracking-tight text-white font-sans">
+              Exclusieve Catalogus
+            </h1>
+            <p className="text-slate-400 mt-4 leading-relaxed text-sm font-light">
+              Welkom bij onze premium vloot showroom. Vind hier uw droomvliegtuig of de ideale helikopter voor uw vloot.
+            </p>
+          </div>
+
+          <div className="text-center py-20 bg-slate-950 border border-slate-800 rounded-3xl p-8 max-w-xl mx-auto space-y-6">
+            <div className="h-16 w-16 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto text-[#ea580c] border border-slate-800 animate-pulse">
+              <ShoppingBag className="h-8 w-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-white font-sans">Catalogus Momenteel Leeg</h3>
+              <p className="text-xs text-slate-400 font-light max-w-md mx-auto leading-relaxed font-sans">
+                Er zijn op dit moment geen vliegtuigen beschikbaar in de catalogus. Voeg vliegtoestellen toe via het Vlootbeheer in het <strong>Personeelsportaal</strong> om deze hier te presenteren.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const currentSelected = selectedAircraftState || currentList[0];
 
   // Selected aircraft inventory stats
