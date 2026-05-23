@@ -1,0 +1,6 @@
+{
+  "name": "Luchtvaart Centrum voor Oranjestad",
+  "description": "Portaal voor Luchtvaart Centrum Oranjestad. Beheer vliegdiploma's, showroom voorraad, en medewerkers accounts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
