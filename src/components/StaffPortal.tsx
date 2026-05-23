@@ -38,6 +38,14 @@ export default function StaffPortal({
   // Accounts management
   const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>([]);
 
+  const getDiscordRedirectUri = () => {
+    const host = window.location.hostname;
+    if (host.includes("luchtvaart-oranjestad.nl")) {
+      return "https://www.luchtvaart-oranjestad.nl/";
+    }
+    return window.location.origin + "/";
+  };
+
   // Authentication states
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
   const [username, setUsername] = React.useState("");
@@ -167,7 +175,7 @@ export default function StaffPortal({
     setDiscordLoginError(null);
     setLoginError(null);
     try {
-      const redirectUri = window.location.origin + window.location.pathname;
+      const redirectUri = getDiscordRedirectUri();
       const response = await fetch("/api/discord/exchange", {
         method: "POST",
         headers: {
@@ -226,7 +234,7 @@ export default function StaffPortal({
     setDiscordLoginError(null);
     setIsDiscordLoggingIn(true);
     try {
-      const redirectUri = window.location.origin + window.location.pathname;
+      const redirectUri = getDiscordRedirectUri();
       const res = await fetch(`/api/discord/auth-url?redirectUri=${encodeURIComponent(redirectUri)}`);
       if (!res.ok) {
         const data = await res.json();

@@ -43,6 +43,14 @@ export default function App() {
   // Success notifications
   const [transactionSuccess, setTransactionSuccess] = React.useState<string | null>(null);
 
+  // Auto-switch to staff tab if redirecting back from Discord with code parameter
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("code")) {
+      setCurrentTab("staff");
+    }
+  }, []);
+
   // Load state from local storage on mount
   React.useEffect(() => {
     try {
