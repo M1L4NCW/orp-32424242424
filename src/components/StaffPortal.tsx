@@ -18,11 +18,115 @@ interface StaffPortalProps {
 }
 
 // Default staff accounts
-const DEFAULT_STAFF_ACCOUNTS: StaffUser[] = [
-  { id: "u-1", username: "MikeL", passwordHash: "MikeLapose_eigenaar99!", role: "owner", fullname: "Mike Lapose" }
-];
+const DEFAULT_STAFF_ACCOUNTS: StaffUser[] = [];
 
 const STAFF_ACCOUNTS_KEY = "@luchtvaart_oranjestad_staff_accounts";
+
+interface AircraftStockRowProps {
+  key?: React.Key;
+  aircraft: Aircraft;
+  inventoryItem: AircraftInventory;
+  onUpdate: (id: string, stockCount: number, priceOverride?: number) => void;
+  onDelete: (id: string) => void;
+}
+
+function AircraftStockRow({ aircraft, inventoryItem, onUpdate, onDelete }: AircraftStockRowProps) {
+  const [stock, setStock] = React.useState(inventoryItem?.stockCount ?? 0);
+  const [priceOverride, setPriceOverride] = React.useState(inventoryItem?.priceOverride ?? "");
+  const [isSaved, setIsSaved] = React.useState(false);
+
+  React.useEffect(() => {
+    setStock(inventoryItem?.stockCount ?? 0);
+    setPriceOverride(inventoryItem?.priceOverride ?? "");
+  }, [inventoryItem]);
+
+  const handleSave = () => {
+    onUpdate(aircraft.id, Number(stock), priceOverride !== "" ? Number(priceOverride) : undefined);
+    setIsSaved(true);
+    setTimeout(() => setIsSaved(false), 2000);
+  };
+
+  const isCustom = aircraft.id.startsWith("custom-");
+
+  return (
+    <tr className="border-b border-slate-850/60 hover:bg-slate-900/20 transition-all">
+      <td className="py-3 px-4 font-bold text-[#ea580c] select-all max-w-[120px] truncate" title={aircraft.id}>
+        {aircraft.id}
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-2">
+          {aircraft.imageUrl && (
+            <img src={aircraft.imageUrl} alt={aircraft.name} className="h-7 w-12 object-cover rounded border border-slate-800 shrink-0" referrerPolicy="no-referrer" />
+          )}
+          <div>
+            <div className="font-sans font-medium text-white text-xs">{aircraft.name}</div>
+            <div className="text-[10px] text-slate-500 font-sans">{aircraft.manufacturer}</div>
+          </div>
+        </div>
+      </td>
+      <td className="py-3 px-4 capitalize font-sans text-slate-400">
+        <span className={`px-2.5 py-0.5 rounded text-[9px] uppercase font-bold text-slate-950 ${
+          aircraft.type === "helicopter" 
+            ? "bg-cyan-400" 
+            : aircraft.type === "small-plane" 
+            ? "bg-orange-400" 
+            : "bg-purple-400"
+        }`}>
+          {aircraft.type === "helicopter" ? "Helikopter" : aircraft.type === "small-plane" ? "Vliegtuig Klein" : "Vliegtuig Groot"}
+        </span>
+      </td>
+      <td className="py-3 px-4 text-slate-400">
+        €{aircraft.basePrice.toLocaleString("nl-NL")}
+      </td>
+      <td className="py-3 px-4">
+        <input
+          type="number"
+          value={stock}
+          onChange={(e) => setStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
+          className="w-16 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-center font-bold text-white focus:border-[#ea580c] outline-none"
+        />
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-1.5">
+          <span className="text-slate-500 text-[10px]">€</span>
+          <input
+            type="number"
+            placeholder="Origineel"
+            value={priceOverride}
+            onChange={(e) => setPriceOverride(e.target.value)}
+            className="w-24 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-200 text-xs focus:border-[#ea580c] outline-none font-bold"
+          />
+        </div>
+      </td>
+      <td className="py-3 px-4 text-right">
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={handleSave}
+            type="button"
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1 cursor-pointer ${
+              isSaved 
+                ? "bg-emerald-500 text-slate-950" 
+                : "bg-slate-850 hover:bg-[#ea580c]/20 text-slate-300 hover:text-[#ea580c]"
+            }`}
+          >
+            {isSaved ? "Bewaard!" : "Sla op"}
+          </button>
+          
+          {isCustom && (
+            <button
+              onClick={() => onDelete(aircraft.id)}
+              type="button"
+              className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-slate-800 rounded transition-all cursor-pointer"
+              title="Vliegtuig verwijderen uit showroom"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 export default function StaffPortal({ 
   issuedLicenses, 
@@ -48,6 +152,7 @@ export default function StaffPortal({
 
   // Authentication states
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [loggedInUser, setLoggedInUser] = React.useState<StaffUser | null>(null);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [role, setRole] = React.useState<"owner" | "manager" | "medewerker" | null>(null);
@@ -56,7 +161,7 @@ export default function StaffPortal({
   const [showPassword, setShowPassword] = React.useState(false);
 
   // Active view in portal
-  const [activeTab, setActiveTab] = React.useState<"registry" | "issue" | "administration" | "users">("registry");
+  const [activeTab, setActiveTab] = React.useState<"registry" | "issue" | "administration" | "users" | "fleet">("registry");
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -88,6 +193,119 @@ export default function StaffPortal({
   const [isDiscordLoggingIn, setIsDiscordLoggingIn] = React.useState(false);
   const [discordLoginError, setDiscordLoginError] = React.useState<string | null>(null);
 
+  // New Aircraft and fleet/stock form states
+  const [fleetName, setFleetName] = React.useState("");
+  const [fleetType, setFleetType] = React.useState<"helicopter" | "small-plane" | "large-plane">("small-plane");
+  const [fleetManufacturer, setFleetManufacturer] = React.useState("");
+  const [fleetBasePrice, setFleetBasePrice] = React.useState("");
+  const [fleetTopSpeed, setFleetTopSpeed] = React.useState("");
+  const [fleetRange, setFleetRange] = React.useState("");
+  const [fleetEngine, setFleetEngine] = React.useState("");
+  const [fleetCapacity, setFleetCapacity] = React.useState("");
+  const [fleetDescription, setFleetDescription] = React.useState("");
+  const [fleetImageUrl, setFleetImageUrl] = React.useState("");
+  const [fleetInitialStock, setFleetInitialStock] = React.useState("5");
+  const [fleetSuccessMessage, setFleetSuccessMessage] = React.useState<string | null>(null);
+
+  // New aircraft handlers
+  const handleAddCustomAircraft = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fleetName.trim() || !fleetManufacturer.trim() || !fleetBasePrice) {
+      setPortalAlertMessage("Vul alle verplichte velden in!");
+      return;
+    }
+
+    const uniqueId = "custom-" + Date.now();
+    const newAircraft: Aircraft = {
+      id: uniqueId,
+      name: fleetName.trim(),
+      type: fleetType,
+      manufacturer: fleetManufacturer.trim(),
+      basePrice: Number(fleetBasePrice),
+      topSpeedKnots: Number(fleetTopSpeed) || 120,
+      rangeKm: Number(fleetRange) || 800,
+      engineType: fleetEngine.trim() || "Standaardzuigermotor",
+      capacity: Number(fleetCapacity) || 4,
+      description: fleetDescription.trim() || "Een prachtig custom vliegtoestel, direct leverbaar uit de showroom.",
+      imageTheme: "linear-gradient(135deg, #1e293b, #0f172a)",
+      imageUrl: fleetImageUrl.trim() || undefined
+    };
+
+    const nextList = [...(aircraftList || []), newAircraft];
+    onUpdateAircraftList(nextList);
+
+    const newInv: AircraftInventory = {
+      aircraftId: uniqueId,
+      stockCount: Number(fleetInitialStock) || 0,
+      status: (Number(fleetInitialStock) || 0) > 0 ? "Op voorraad" : "Uitverkocht"
+    };
+    const nextInv = [...(inventory || []), newInv];
+    onUpdateInventory(nextInv);
+
+    setFleetSuccessMessage(`Vliegtuig '${fleetName}' is succesvol toegevoegd aan de catalogus met voorraad!`);
+    
+    // Reset form fields
+    setFleetName("");
+    setFleetType("small-plane");
+    setFleetManufacturer("");
+    setFleetBasePrice("");
+    setFleetTopSpeed("");
+    setFleetRange("");
+    setFleetEngine("");
+    setFleetCapacity("");
+    setFleetDescription("");
+    setFleetImageUrl("");
+    setFleetInitialStock("5");
+
+    setTimeout(() => {
+      setFleetSuccessMessage(null);
+    }, 5000);
+  };
+
+  const handleDeleteCustomAircraft = (aircraftId: string) => {
+    const nextList = aircraftList.filter(a => a.id !== aircraftId);
+    onUpdateAircraftList(nextList);
+
+    const nextInv = inventory.filter(i => i.aircraftId !== aircraftId);
+    onUpdateInventory(nextInv);
+
+    setPortalAlertMessage("Vliegtuig is succesvol uit de catalogus verwijderd.");
+  };
+
+  const handleUpdateSingleAircraftStock = (aircraftId: string, stock: number, priceOverride?: number) => {
+    const exists = inventory.some(i => i.aircraftId === aircraftId);
+    let nextInv: AircraftInventory[];
+    if (exists) {
+      nextInv = inventory.map(item => {
+        if (item.aircraftId === aircraftId) {
+          return {
+            ...item,
+            stockCount: stock,
+            status: stock > 0 ? "Op voorraad" as const : "Uitverkocht" as const,
+            priceOverride: priceOverride ? Number(priceOverride) : undefined
+          };
+        }
+        return item;
+      });
+    } else {
+      nextInv = [
+        ...inventory,
+        {
+          aircraftId,
+          stockCount: stock,
+          status: stock > 0 ? "Op voorraad" as const : "Uitverkocht" as const,
+          priceOverride: priceOverride ? Number(priceOverride) : undefined
+        }
+      ];
+    }
+    // Set appropriate status based on inventory stock
+    const cleanedInv = nextInv.map(element => ({
+      ...element,
+      status: element.stockCount > 0 ? ("Op voorraad" as const) : ("Uitverkocht" as const)
+    }));
+    onUpdateInventory(cleanedInv);
+  };
+
   // Load and sync accounts from local storage
   React.useEffect(() => {
     const stored = localStorage.getItem(STAFF_ACCOUNTS_KEY);
@@ -102,33 +320,12 @@ export default function StaffPortal({
       accounts = [...DEFAULT_STAFF_ACCOUNTS];
     }
 
-    // Modern operational migration: ensure Eigenaar Mike Lapose is configured as the owner
-    const ownerIndex = accounts.findIndex(u => u.role === "owner");
-    if (ownerIndex !== -1) {
-      const owner = accounts[ownerIndex];
-      if (owner.username !== "MikeL" || owner.passwordHash !== "MikeLapose_eigenaar99!" || owner.fullname !== "Mike Lapose") {
-        accounts[ownerIndex] = {
-          ...owner,
-          username: "MikeL",
-          fullname: "Mike Lapose",
-          passwordHash: "MikeLapose_eigenaar99!"
-        };
-      }
-    } else {
-      accounts.push({
-        id: "u-1",
-        username: "MikeL",
-        fullname: "Mike Lapose",
-        passwordHash: "MikeLapose_eigenaar99!",
-        role: "owner"
-      });
-    }
-
     // Clean up old default test users to prepare for live operation
     accounts = accounts.filter(u => {
       if (u.username === "owner" && u.passwordHash === "oranjestad_owner") return false;
       if (u.username === "manager" && u.passwordHash === "oranjestad123") return false;
       if (u.username === "medewerker" && u.passwordHash === "vliegen456") return false;
+      if (u.username === "MikeL" || u.fullname === "Mike Lapose") return false;
       return true;
     });
 
@@ -136,29 +333,12 @@ export default function StaffPortal({
     localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(accounts));
   }, []);
 
-  // Check for Discord code inside URL or custom session on mount
+  // Check only for fresh Discord auth code in URL on mount and clear persistent session
   React.useEffect(() => {
-    // 1. First check if we have a saved Discord session
-    const savedSession = localStorage.getItem("@luchtvaart_oranjestad_discord_session");
-    if (savedSession) {
-      try {
-        const u = JSON.parse(savedSession);
-        setIsLoggedIn(true);
-        setRole(u.role);
-        setFullname(u.fullname);
-        setIssuedByTeacher(u.fullname);
-        if (u.role === "owner" || u.role === "manager") {
-          setActiveTab("administration");
-        } else {
-          setActiveTab("issue");
-        }
-        return; // Session restored, skip URL check
-      } catch (e) {
-        localStorage.removeItem("@luchtvaart_oranjestad_discord_session");
-      }
-    }
+    // Explicitly delete any legacy saved session so a refresh always starts logged out
+    localStorage.removeItem("@luchtvaart_oranjestad_discord_session");
 
-    // 2. Otherwise check for a fresh login callback code in URL search params
+    // Check for a fresh login callback code in URL search params from Discord OAuth redirect
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
     if (code) {
@@ -195,8 +375,6 @@ export default function StaffPortal({
         setFullname(data.user.fullname);
         setIssuedByTeacher(data.user.fullname);
         
-        localStorage.setItem("@luchtvaart_oranjestad_discord_session", JSON.stringify(data.user));
-        
         // Push user details into Staff accounts database so we keep them persistent
         const discordUser: StaffUser = {
           id: `discord-${data.user.discordId}`,
@@ -205,6 +383,8 @@ export default function StaffPortal({
           role: data.user.role,
           fullname: data.user.fullname
         };
+
+        setLoggedInUser(discordUser);
         
         setStaffAccounts(prev => {
           const exists = prev.some(u => u.id === discordUser.id);
@@ -303,6 +483,7 @@ export default function StaffPortal({
       setRole(matchedUser.role);
       setFullname(matchedUser.fullname);
       setIssuedByTeacher(matchedUser.fullname); // Pre-set in forms
+      setLoggedInUser(matchedUser);
       setLoginError(null);
       // Auto tabs based on role
       if (matchedUser.role === "owner" || matchedUser.role === "manager") {
@@ -318,11 +499,29 @@ export default function StaffPortal({
   const handleLogout = () => {
     setIsLoggedIn(false);
     setRole(null);
+    setLoggedInUser(null);
     setUsername("");
     setPassword("");
     setFullname("");
     localStorage.removeItem("@luchtvaart_oranjestad_discord_session");
   };
+
+  // Automatically log out if the current logged-in user is deleted or altered in local staff accounts
+  React.useEffect(() => {
+    if (isLoggedIn && loggedInUser) {
+      // Find matches on either ID or username
+      const stillExists = staffAccounts.find(
+        u => u.id === loggedInUser.id || u.username.toLowerCase() === loggedInUser.username.toLowerCase()
+      );
+      if (!stillExists) {
+        handleLogout();
+        setPortalAlertMessage("Jouw medewerkersaccount is ingetrokken of verwijderd door de eigenaar. Je bent direct uitgelogd.");
+      } else if (stillExists.role !== role) {
+        setRole(stillExists.role);
+        setLoggedInUser(stillExists);
+      }
+    }
+  }, [staffAccounts, isLoggedIn, loggedInUser]);
 
   // Issue License/Diploma handler with financial defaults
   const handleIssueLicenseSubmit = (e: React.FormEvent) => {
@@ -590,6 +789,18 @@ export default function StaffPortal({
             <span>Financiën & Administratie</span>
           </button>
 
+          <button
+            onClick={() => setActiveTab("fleet")}
+            className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === "fleet"
+                ? "bg-slate-950 text-white border border-[#ea580c]"
+                : "bg-transparent text-slate-400 hover:text-white"
+            }`}
+          >
+            <Settings className="h-4 w-4" />
+            <span>Vloot & Voorraad Beheer</span>
+          </button>
+
           {role === "owner" && (
             <button
               onClick={() => setActiveTab("users")}
@@ -834,7 +1045,8 @@ export default function StaffPortal({
                   commission: 35000,
                   standardTax: 15000,
                   grossTax: 250000 * 0.07, // €17,500
-                  managementFee: 30000 // 2x 15k
+                  managementFee: 30000, // 2x 15k
+                  purchaseCost: 100000 // Inkoop helicopter = 100k
                 };
               case "small-plane":
                 return {
@@ -842,7 +1054,8 @@ export default function StaffPortal({
                   commission: 60000,
                   standardTax: 15000,
                   grossTax: 500000 * 0.07, // €35,000
-                  managementFee: 30000 // 2x 15k
+                  managementFee: 30000, // 2x 15k
+                  purchaseCost: 200000 // Inkoop klein vliegtuig = 200k
                 };
               case "large-plane":
                 return {
@@ -850,10 +1063,11 @@ export default function StaffPortal({
                   commission: 80000,
                   standardTax: 15000,
                   grossTax: 750000 * 0.07, // €52,500
-                  managementFee: 30000 // 2x 15k
+                  managementFee: 30000, // 2x 15k
+                  purchaseCost: 300000 // Inkoop groot vliegtuig = 300k
                 };
               default:
-                return { price: 0, commission: 0, standardTax: 0, grossTax: 0, managementFee: 0 };
+                return { price: 0, commission: 0, standardTax: 0, grossTax: 0, managementFee: 0, purchaseCost: 0 };
             }
           };
 
@@ -888,6 +1102,9 @@ export default function StaffPortal({
             // Management distribution (2x 15k = 30k)
             acc.managementFees += details.managementFee;
 
+            // Licensing material procurement costs (Inkoopkosten)
+            acc.purchaseCosts += details.purchaseCost;
+
             return acc;
           }, {
             grossRevenue: 0,
@@ -899,11 +1116,12 @@ export default function StaffPortal({
             unpaidStandardTax: 0,
             unpaidGrossTax: 0,
             totalTaxes: 0,
-            managementFees: 0
+            managementFees: 0,
+            purchaseCosts: 0
           });
 
-          const totalBusinessExpenses = totals.totalCommission + totals.totalTaxes + totals.managementFees;
-          // Winstpotje = Totaal Brutowinst - Alle kosten
+          const totalBusinessExpenses = totals.totalCommission + totals.totalTaxes + totals.managementFees + totals.purchaseCosts;
+          // Winstpotje = Totaal Brutowinst - Alle kosten (Werknemers, Belastingen, Management & Inkoopkosten)
           const winstPotjeBalance = totals.grossRevenue - totalBusinessExpenses;
 
           // Compute individual employee statistics
@@ -1016,7 +1234,7 @@ export default function StaffPortal({
                   </div>
                   <div className="pt-4 border-t border-slate-900">
                     <p className="text-[10px] font-sans text-slate-400 font-light block leading-relaxed">
-                      Alle netto winst na aftrek van belasting (7% + 15k), management fees en medewerker premies.
+                      Alle netto winst na aftrek van inkoopkosten, belasting (7% + 15k), management fees en medewerker premies.
                     </p>
                   </div>
                 </div>
@@ -1071,6 +1289,10 @@ export default function StaffPortal({
                   </div>
 
                   <div className="pt-3 divide-y divide-slate-900 font-sans text-[10px] text-slate-400">
+                    <div className="flex justify-between py-1.5">
+                      <span>Inkoopkosten brevetten:</span>
+                      <strong className="text-amber-500 font-bold">€{totals.purchaseCosts.toLocaleString("nl-NL")}</strong>
+                    </div>
                     <div className="flex justify-between py-1.5">
                       <span>Werknemervergoedingen:</span>
                       <strong className="text-slate-200">€{totals.totalCommission.toLocaleString("nl-NL")}</strong>
@@ -1247,150 +1469,319 @@ export default function StaffPortal({
           );
         })()}
 
-        {/* OWNER USER ACCOUNTS MANAGEMENTS */}
-        {activeTab === "users" && role === "owner" && (
+        {/* VLOOT & VOORRAAD BEHEER TAB */}
+        {activeTab === "fleet" && (role === "owner" || role === "manager" || role === "medewerker") && (
           <div className="space-y-8 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               
-              {/* Form to CREATE new user account */}
-              <div className="md:col-span-5 bg-slate-950 border border-slate-800 p-6 rounded-3xl">
+              {/* Form to ADD aircraft */}
+              <div className="lg:col-span-5 bg-slate-950 border border-slate-800 p-6 rounded-3xl">
                 <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
-                  <UserCheck className="h-5 w-5 text-[#ea580c]" />
-                  <h3 className="font-display font-semibold text-base text-white">Nieuw Account Registreren</h3>
+                  <PlusCircle className="h-5 w-5 text-[#ea580c]" />
+                  <h3 className="font-display font-semibold text-base text-white">Nieuw Vliegtuig Toevoegen</h3>
                 </div>
 
-                {userCreatedMessage && (
+                {fleetSuccessMessage && (
                   <div className="mb-4 p-3.5 bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 text-xs rounded-xl flex gap-2 items-center">
                     <CheckCircle className="h-4.5 w-4.5 shrink-0" />
-                    <span>{userCreatedMessage}</span>
+                    <span>{fleetSuccessMessage}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleCreateUser} className="space-y-4 font-mono text-xs text-slate-300">
+                <form onSubmit={handleAddCustomAircraft} className="space-y-4 text-xs">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Vliegtuignaam *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="bijv: Cessna Skyhawk 172"
+                        value={fleetName}
+                        onChange={(e) => setFleetName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Fabrikant *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="bijv: Cessna"
+                        value={fleetManufacturer}
+                        onChange={(e) => setFleetManufacturer(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Type Categorie</label>
+                      <select
+                        value={fleetType}
+                        onChange={(e) => setFleetType(e.target.value as any)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      >
+                        <option value="small-plane">Vliegtuig Klein (Single-Engine)</option>
+                        <option value="large-plane">Vliegtuig Groot (Multi-Engine/Jet)</option>
+                        <option value="helicopter">Helikopter</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Basisprijs (€) *</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="bijv: 350000"
+                        value={fleetBasePrice}
+                        onChange={(e) => setFleetBasePrice(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase block">Capaciteit</label>
+                      <input
+                        type="number"
+                        placeholder="Zitplaatsen"
+                        value={fleetCapacity}
+                        onChange={(e) => setFleetCapacity(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase block">Bereik (km)</label>
+                      <input
+                        type="number"
+                        placeholder="Bereik"
+                        value={fleetRange}
+                        onChange={(e) => setFleetRange(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase block">Specs Knopen</label>
+                      <input
+                        type="number"
+                        placeholder="Knopen"
+                        value={fleetTopSpeed}
+                        onChange={(e) => setFleetTopSpeed(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Volledige Naam Medewerker</label>
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Motortype & Aandrijving</label>
                     <input
                       type="text"
-                      required
-                      placeholder="bijv: Maria Sanchez"
-                      value={newFullname}
-                      onChange={(e) => setNewFullname(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-xs font-sans text-slate-200"
+                      placeholder="bijv: Lycoming O-360 (180 PK)"
+                      value={fleetEngine}
+                      onChange={(e) => setFleetEngine(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Gebruikersnaam / Login ID</label>
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Afbeelding URL</label>
                     <input
                       type="text"
-                      required
-                      placeholder="bijv: marias"
-                      value={newUsername}
-                      onChange={(e) => setNewUsername(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      placeholder="HTTPS link naar afbeelding"
+                      value={fleetImageUrl}
+                      onChange={(e) => setFleetImageUrl(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
                     />
+                    
+                    {/* Presets help list */}
+                    <div className="mt-2 space-y-1">
+                      <span className="text-[9px] text-slate-500 block uppercase font-mono">Gebruik een van de sample afbeeldingen:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setFleetImageUrl("https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=800&q=80")}
+                          className="px-2 py-1 bg-slate-950 hover:bg-slate-850 hover:text-white rounded border border-slate-850 text-[9px] text-slate-400 font-sans cursor-pointer transition-colors"
+                        >
+                          🛩️ Sport Cessna
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFleetImageUrl("https://images.unsplash.com/photo-1527261834078-9b37d35a4a32?auto=format&fit=crop&w=800&q=80")}
+                          className="px-2 py-1 bg-slate-950 hover:bg-slate-850 hover:text-white rounded border border-slate-850 text-[9px] text-slate-400 font-sans cursor-pointer transition-colors"
+                        >
+                          ✈️ Small Jet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFleetImageUrl("https://images.unsplash.com/photo-1508962914676-134849a727f0?auto=format&fit=crop&w=800&q=80")}
+                          className="px-2 py-1 bg-slate-950 hover:bg-slate-850 hover:text-white rounded border border-slate-850 text-[9px] text-slate-400 font-sans cursor-pointer transition-colors"
+                        >
+                          ** Heli
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFleetImageUrl("https://images.unsplash.com/photo-1473830394358-91588751b241?auto=format&fit=crop&w=800&q=80")}
+                          className="px-2 py-1 bg-slate-950 hover:bg-slate-850 hover:text-white rounded border border-slate-850 text-[9px] text-slate-400 font-sans cursor-pointer transition-colors"
+                        >
+                          🛬 Luxury Jet
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Initiële Voorraad</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={fleetInitialStock}
+                        onChange={(e) => setFleetInitialStock(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold text-amber-500 font-mono">Wachtwoord</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Wachtwoord"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-xs font-mono text-slate-205"
+                    <label className="text-[10px] text-slate-500 uppercase block">Korte Beschrijving</label>
+                    <textarea
+                      rows={2}
+                      placeholder="bijv: Luxe zakenvliegtuig met premium interieur en state-of-the-art avionics."
+                      value={fleetDescription}
+                      onChange={(e) => setFleetDescription(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200 font-sans"
                     />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Rol / Bevoegdheden</label>
-                    <select
-                      value={newUserRole}
-                      onChange={(e) => setNewUserRole(e.target.value as any)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-xs text-slate-300 font-sans"
-                    >
-                      <option value="medewerker">Medewerker (Mag alleen diploma's schrijven)</option>
-                      <option value="manager">Manager (Mag diploma's + winkelvoorraad)</option>
-                    </select>
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full bg-[#ea580c] hover:bg-[#ea580c]/90 text-slate-950 font-bold font-mono py-3 rounded-xl text-xs tracking-wider uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full bg-[#ea580c] hover:bg-[#ea580c]/90 text-slate-950 font-bold font-mono py-2.5 rounded-xl text-xs tracking-wider uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Plus className="h-4 w-4" />
-                    <span>Maak Account Aan</span>
+                    <span>Hangar Catalogus Toevoegen</span>
                   </button>
                 </form>
               </div>
 
-              {/* LIST of active registered users accounts */}
-              <div className="md:col-span-7 bg-slate-950 border border-slate-800 p-6 rounded-3xl">
+              {/* Grid / Table of Hangar Stock */}
+              <div className="lg:col-span-12 lg:col-span-7 bg-slate-950 border border-slate-800 p-6 rounded-3xl">
                 <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
-                  <Users className="h-5 w-5 text-[#ea580c]" />
-                  <h3 className="font-display font-semibold text-base text-white">Geregistreerde Medewerkers & Wachtwoorden</h3>
+                  <ShieldCheck className="h-5 w-5 text-[#ea580c]" />
+                  <h3 className="font-display font-semibold text-base text-white">Winkel Hangar & Catalogus Voorraad</h3>
                 </div>
 
                 <p className="text-xs text-slate-400 font-light mb-6">
-                  Hieronder is de volledige lijst van bevoegde medewerkers. U kunt wachtwoorden inzien of medewerkers onmiddellijk ontslaan (wissen).
+                  Wijzig hier direct de actuele winkelvoorraad (stock count) of stel een handmatige actie/verkoopprijs (price override) in.
                 </p>
 
-                <div className="space-y-3">
-                  {staffAccounts.map((user) => (
-                    <div key={user.id} className="group/credential bg-slate-900 border border-slate-850 p-4 rounded-2xl flex items-center justify-between gap-4 font-mono text-xs hover:border-[#ea580c]/40 transition-all duration-300">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-display font-bold text-sm text-white font-sans">{user.fullname}</span>
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                            user.role === "owner" 
-                              ? "bg-rose-500/20 text-rose-400 border border-rose-500/20" 
-                              : user.role === "manager" 
-                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/20" 
-                              : "bg-blue-500/20 text-blue-400 border border-blue-500/20"
-                          }`}>
-                            {user.role}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-2 space-y-1.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span>Gebruikersnaam:</span>
-                            <strong className="text-slate-200 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-850/60 select-all transition-all duration-300 blur-sm group-hover/credential:blur-none font-bold">
-                              {user.username}
-                            </strong>
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span>Wachtwoord:</span>
-                            {role === "owner" ? (
-                              <strong className="text-amber-500 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-850/60 select-all transition-all duration-300 blur-sm group-hover/credential:blur-none font-bold">
-                                {user.passwordHash}
-                              </strong>
-                            ) : (
-                              <span className="text-slate-500 italic font-sans text-[10px] select-none">[Enkel zichtbaar voor Eigenaar]</span>
-                            )}
-                          </div>
-                        </div>
-                        {role === "owner" && (
-                          <div className="mt-2 text-[9px] text-[#ea580c] opacity-60 group-hover/credential:opacity-0 transition-opacity duration-300 font-sans font-light">
-                            (Houd de muis hier over om inloggegevens te tonen)
-                          </div>
-                        )}
-                      </div>
-
-                      {user.role !== "owner" && (
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
-                          title="Medewerker ontslaan"
-                        >
-                          <Trash2 className="h-4.5 w-4.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-500 text-[10px] uppercase font-bold">
+                        <th className="py-3 px-4">Model ID</th>
+                        <th className="py-3 px-4">Toestelnaam</th>
+                        <th className="py-3 px-4">Type</th>
+                        <th className="py-3 px-4">Basisprijs</th>
+                        <th className="py-3 px-4">Voorraad</th>
+                        <th className="py-3 px-4">Verkoopprijs Actie (€)</th>
+                        <th className="py-3 px-4 text-right">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aircraftList.map((air) => {
+                        const invItem = inventory.find(i => i.aircraftId === air.id) || {
+                          aircraftId: air.id,
+                          stockCount: 0,
+                          status: "Uitverkocht" as const
+                        };
+                        return (
+                          <AircraftStockRow
+                            key={air.id}
+                            aircraft={air}
+                            inventoryItem={invItem}
+                            onUpdate={handleUpdateSingleAircraftStock}
+                            onDelete={handleDeleteCustomAircraft}
+                          />
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
+
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* OWNER USER ACCOUNTS MANAGEMENTS */}
+        {activeTab === "users" && role === "owner" && (
+          <div className="space-y-8 animate-fade-in max-w-3xl mx-auto">
+            {/* LIST of active registered users accounts */}
+            <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-xl">
+              <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
+                <Users className="h-5 w-5 text-[#ea580c]" />
+                <h3 className="font-display font-semibold text-base text-white font-sans text-left">Geregistreerde Medewerkers & Wachtwoorden</h3>
+              </div>
+
+              <p className="text-xs text-slate-400 font-light mb-6">
+                Hieronder is de volledige lijst van bevoegde medewerkers. U kunt wachtwoorden inzien of medewerkers onmiddellijk ontslaan (wissen).
+              </p>
+
+              <div className="space-y-3">
+                {staffAccounts.map((user) => (
+                  <div key={user.id} className="group/credential bg-slate-900 border border-slate-850 p-4 rounded-2xl flex items-center justify-between gap-4 font-mono text-xs hover:border-[#ea580c]/40 transition-all duration-300">
+                    <div className="text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="font-display font-bold text-sm text-white font-sans">{user.fullname}</span>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                          user.role === "owner" 
+                            ? "bg-rose-500/20 text-rose-400 border border-rose-500/20" 
+                            : user.role === "manager" 
+                            ? "bg-amber-500/20 text-amber-400 border border-amber-500/20" 
+                            : "bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                        }`}>
+                          {user.role}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-2 space-y-1.5 font-mono">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>Gebruikersnaam:</span>
+                          <strong className="text-slate-200 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-850/60 select-all transition-all duration-300 blur-sm group-hover/credential:blur-none font-bold">
+                            {user.username}
+                          </strong>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>Wachtwoord:</span>
+                          {role === "owner" ? (
+                            <strong className="text-amber-500 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-850/60 select-all transition-all duration-300 blur-sm group-hover/credential:blur-none font-bold">
+                              {user.passwordHash}
+                            </strong>
+                          ) : (
+                            <span className="text-slate-500 italic font-sans text-[10px] select-none">[Enkel zichtbaar voor Eigenaar]</span>
+                          )}
+                        </div>
+                      </div>
+                      {role === "owner" && (
+                        <div className="mt-2 text-[9px] text-[#ea580c] opacity-60 group-hover/credential:opacity-0 transition-opacity duration-300 font-sans font-light">
+                          (Houd de muis hier over om inloggegevens te tonen)
+                        </div>
+                      )}
+                    </div>
+
+                    {user.role !== "owner" && (
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+                        title="Medewerker ontslaan"
+                      >
+                        <Trash2 className="h-4.5 w-4.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
