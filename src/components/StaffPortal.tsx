@@ -60,7 +60,6 @@ function AircraftStockRow({ aircraft, inventoryItem, onUpdate, onDelete }: Aircr
           )}
           <div>
             <div className="font-sans font-medium text-white text-xs">{aircraft.name}</div>
-            <div className="text-[10px] text-slate-500 font-sans">{aircraft.manufacturer}</div>
           </div>
         </div>
       </td>
@@ -210,7 +209,7 @@ export default function StaffPortal({
   // New aircraft handlers
   const handleAddCustomAircraft = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fleetName.trim() || !fleetManufacturer.trim() || !fleetBasePrice) {
+    if (!fleetName.trim() || !fleetBasePrice) {
       setPortalAlertMessage("Vul alle verplichte velden in!");
       return;
     }
@@ -220,11 +219,11 @@ export default function StaffPortal({
       id: uniqueId,
       name: fleetName.trim(),
       type: fleetType,
-      manufacturer: fleetManufacturer.trim(),
+      manufacturer: "LCO Hangar",
       basePrice: Number(fleetBasePrice),
-      topSpeedKnots: Number(fleetTopSpeed) || 120,
-      rangeKm: Number(fleetRange) || 800,
-      engineType: fleetEngine.trim() || "Standaardzuigermotor",
+      topSpeedKnots: Math.round((Number(fleetTopSpeed) || 222) / 1.852),
+      rangeKm: 1000,
+      engineType: "Standaard",
       capacity: Number(fleetCapacity) || 4,
       description: fleetDescription.trim() || "Een prachtig custom vliegtoestel, direct leverbaar uit de showroom.",
       imageTheme: "linear-gradient(135deg, #1e293b, #0f172a)",
@@ -686,36 +685,6 @@ export default function StaffPortal({
               )}
               <span>{isDiscordLoggingIn ? "Bezig met verbinden..." : "Inloggen met Discord"}</span>
             </button>
-
-            {/* Admin setup instruction helper */}
-            <div className="mt-6 pt-5 border-t border-slate-900 text-center">
-              <details className="group cursor-pointer select-none">
-                <summary className="list-none text-[10px] text-slate-500 hover:text-[#ea580c] transition-colors font-mono uppercase tracking-widest flex items-center justify-center gap-1">
-                  <span>ℹ️ Discord Rollen-Koppeling Configureren</span>
-                  <span className="text-[8px] group-open:rotate-180 transition-transform block">▼</span>
-                </summary>
-                <div className="mt-3 text-left bg-slate-900 border border-slate-800 rounded-xl p-4 text-[11px] text-slate-400 space-y-2 leading-relaxed font-light">
-                  <p className="font-semibold text-slate-300">Hoe werkt Discord Rollen verificatie?</p>
-                  <p>In plaats van onveilige wachtwoorden in de browser te verbergen, gebruikt dit portaal een veilige OAuth2-verbinding in combinatie met een Discord Bot-token op de server.</p>
-                  
-                  <div className="space-y-1 font-mono text-[10px] text-slate-400 bg-slate-950 p-2.5 rounded border border-slate-800">
-                    <div className="text-amber-500 font-bold mb-1">// Server Omgevingsvariabelen (.env)</div>
-                    <div>DISCORD_CLIENT_ID=jouw_client_id</div>
-                    <div>DISCORD_CLIENT_SECRET=jouw_client_secret</div>
-                    <div>DISCORD_BOT_TOKEN=jouw_bot_token_hier</div>
-                    <div>DISCORD_GUILD_ID=jouw_server_id</div>
-                    <div>DISCORD_ROLE_OWNER=rol_id_eigenaar</div>
-                    <div>DISCORD_ROLE_MANAGER=rol_id_manager</div>
-                    <div>DISCORD_ROLE_MEDEWERKER=rol_id_medewerker</div>
-                  </div>
-
-                  <p className="font-semibold text-slate-300 pt-1">Belangrijk bij Strato Basic Webhosting:</p>
-                  <p>Strato Basic Webhosting ondersteunt alleen statische bestanden (HTML/JS/CSS) in de map <code className="text-amber-500 text-xs">dist/</code>. De veilige Discord server endpoints draaien in een Node.js-omgeving op een VPS of Cloud Run container.</p>
-                  <p className="text-[10px] text-slate-500">Om Discord login werkend te krijgen op uw Strato-domein, start u de NodeJS server (<code className="text-[#ea580c]">server.ts</code>) op een VPS of backend host, en configureert u daar de Redirect URI naar uw gewenste domein.</p>
-                </div>
-              </details>
-            </div>
-
           </div>
         </div>
       </div>
@@ -777,31 +746,35 @@ export default function StaffPortal({
             <span>Diploma Maken</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("administration")}
-            className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === "administration"
-                ? "bg-slate-950 text-white border border-[#ea580c]"
-                : "bg-transparent text-slate-400 hover:text-white"
-            }`}
-          >
-            <Coins className="h-4 w-4" />
-            <span>Financiën & Administratie</span>
-          </button>
+          {(role === "owner" || role === "manager") && (
+            <button
+              onClick={() => setActiveTab("administration")}
+              className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "administration"
+                  ? "bg-slate-950 text-white border border-[#ea580c]"
+                  : "bg-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <Coins className="h-4 w-4" />
+              <span>Financiën & Administratie</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab("fleet")}
-            className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === "fleet"
-                ? "bg-slate-950 text-white border border-[#ea580c]"
-                : "bg-transparent text-slate-400 hover:text-white"
-            }`}
-          >
-            <Settings className="h-4 w-4" />
-            <span>Vloot & Voorraad Beheer</span>
-          </button>
+          {(role === "owner" || role === "manager") && (
+            <button
+              onClick={() => setActiveTab("fleet")}
+              className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "fleet"
+                  ? "bg-slate-950 text-white border border-[#ea580c]"
+                  : "bg-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <Settings className="h-4 w-4" />
+              <span>Vloot & Voorraad Beheer</span>
+            </button>
+          )}
 
-          {role === "owner" && (
+          {(role === "owner" || role === "manager") && (
             <button
               onClick={() => setActiveTab("users")}
               className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
@@ -1035,7 +1008,7 @@ export default function StaffPortal({
           </div>
         )}
         {/* CORE ADMINISTRATION & FINANCES TAB (The bookkeeping system) */}
-        {activeTab === "administration" && (() => {
+        {activeTab === "administration" && (role === "owner" || role === "manager") && (() => {
           // Financial settings based on requirements
           const getFinancialDetails = (licenseType: "helicopter" | "small-plane" | "large-plane") => {
             switch (licenseType) {
@@ -1470,7 +1443,7 @@ export default function StaffPortal({
         })()}
 
         {/* VLOOT & VOORRAAD BEHEER TAB */}
-        {activeTab === "fleet" && (role === "owner" || role === "manager" || role === "medewerker") && (
+        {activeTab === "fleet" && (role === "owner" || role === "manager") && (
           <div className="space-y-8 animate-fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               
@@ -1489,29 +1462,16 @@ export default function StaffPortal({
                 )}
 
                 <form onSubmit={handleAddCustomAircraft} className="space-y-4 text-xs">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Vliegtuignaam *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="bijv: Cessna Skyhawk 172"
-                        value={fleetName}
-                        onChange={(e) => setFleetName(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Fabrikant *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="bijv: Cessna"
-                        value={fleetManufacturer}
-                        onChange={(e) => setFleetManufacturer(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
-                      />
-                    </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Vliegtuignaam *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="bijv: Cessna Skyhawk 172"
+                      value={fleetName}
+                      onChange={(e) => setFleetName(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -1540,9 +1500,9 @@ export default function StaffPortal({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 uppercase block">Capaciteit</label>
+                      <label className="text-[10px] text-slate-500 uppercase block font-bold">Capaciteit</label>
                       <input
                         type="number"
                         placeholder="Zitplaatsen"
@@ -1552,36 +1512,15 @@ export default function StaffPortal({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 uppercase block">Bereik (km)</label>
+                      <label className="text-[10px] text-slate-500 uppercase block font-bold">Max Snelheid (km/h)</label>
                       <input
                         type="number"
-                        placeholder="Bereik"
-                        value={fleetRange}
-                        onChange={(e) => setFleetRange(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 uppercase block">Specs Knopen</label>
-                      <input
-                        type="number"
-                        placeholder="Knopen"
+                        placeholder="bijv: 250"
                         value={fleetTopSpeed}
                         onChange={(e) => setFleetTopSpeed(e.target.value)}
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Motortype & Aandrijving</label>
-                    <input
-                      type="text"
-                      placeholder="bijv: Lycoming O-360 (180 PK)"
-                      value={fleetEngine}
-                      onChange={(e) => setFleetEngine(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
-                    />
                   </div>
 
                   <div className="space-y-1.5">
@@ -1716,7 +1655,7 @@ export default function StaffPortal({
         )}
 
         {/* OWNER USER ACCOUNTS MANAGEMENTS */}
-        {activeTab === "users" && role === "owner" && (
+        {activeTab === "users" && (role === "owner" || role === "manager") && (
           <div className="space-y-8 animate-fade-in max-w-3xl mx-auto">
             {/* LIST of active registered users accounts */}
             <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-xl">
