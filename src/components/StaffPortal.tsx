@@ -2061,15 +2061,15 @@ export default function StaffPortal({
       }
       
       sheet.getRange(targetRow, 1, 1, 9).setValues([[
+        "",
         lic.citizenId,
         lic.citizenName,
         lic.licenseType === "helicopter" ? "Helikopter" : lic.licenseType === "small-plane" ? "Vliegtuig Klein" : "Vliegtuig Groot",
         lic.issuedBy,
+        "",
+        "Actief",
         lic.issueDate,
-        lic.remarks || "-",
-        lic.employeeCommissionPaid ? "Ja" : "Nee",
-        lic.taxPaid ? "Ja" : "Nee",
-        lic.id
+        "Ja"
       ]]);
       
       return ContentService.createTextOutput(JSON.stringify({ 
@@ -2092,15 +2092,15 @@ export default function StaffPortal({
       
       var rows = sorted.map(function(lic) {
         return [
+          "",
           lic.citizenId,
           lic.citizenName,
           lic.licenseType === "helicopter" ? "Helikopter" : lic.licenseType === "small-plane" ? "Vliegtuig Klein" : "Vliegtuig Groot",
           lic.issuedBy,
+          "",
+          "Actief",
           lic.issueDate,
-          lic.remarks || "-",
-          lic.employeeCommissionPaid ? "Ja" : "Nee",
-          lic.taxPaid ? "Ja" : "Nee",
-          lic.id
+          "Ja"
         ];
       });
       
