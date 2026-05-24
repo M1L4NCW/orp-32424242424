@@ -5,6 +5,7 @@ import {
   Coins, TrendingUp, Percent, Award, Calendar, Megaphone
 } from "lucide-react";
 import { IssuedLicense, AircraftInventory, Aircraft, StaffUser } from "../types";
+import { LICENSES } from "../data";
 
 interface StaffPortalProps {
   issuedLicenses: IssuedLicense[];
@@ -17,6 +18,8 @@ interface StaffPortalProps {
   onUpdateAircraftList: (updated: Aircraft[]) => void;
   announcement: string;
   onUpdateAnnouncement: (text: string) => void;
+  licenseVisibility?: Record<string, boolean>;
+  onUpdateLicenseVisibility?: (visibility: Record<string, boolean>) => void;
 }
 
 // Default staff accounts
@@ -150,7 +153,9 @@ export default function StaffPortal({
   aircraftList,
   onUpdateAircraftList,
   announcement,
-  onUpdateAnnouncement
+  onUpdateAnnouncement,
+  licenseVisibility,
+  onUpdateLicenseVisibility
 }: StaffPortalProps) {
   
   // Accounts management
@@ -1702,6 +1707,51 @@ export default function StaffPortal({
               </div>
 
             </div>
+
+            {/* Vliegbrevetten Zichtbaarheid (Zorg dat beheer ook kan aanvinken welke brevetten je wel en niet kan kopen) */}
+            <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl mt-8">
+              <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
+                <Award className="h-5 w-5 text-[#ea580c]" />
+                <h3 className="font-display font-semibold text-base text-white">Vliegbrevetten Zichtbaarheid</h3>
+              </div>
+              <p className="text-xs text-slate-400 font-light mb-6">
+                Vink aan welke pilotenbrevetten beschikbaar zijn voor aankoop/aanvraag door leerling-piloten in de <strong>Vliegbrevetten & Licenties</strong> hub. Uitgevinkte brevetten worden daar direct verborgen.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans text-left">
+                {LICENSES.map((lic) => {
+                  const isVisible = licenseVisibility ? licenseVisibility[lic.id] !== false : true;
+                  return (
+                    <div 
+                      key={lic.id} 
+                      className="bg-slate-900/60 border border-slate-850 p-5 rounded-2xl flex items-center justify-between gap-4 hover:border-slate-800 transition-all"
+                    >
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-mono text-[#ea580c] font-bold tracking-wider">{lic.category}</span>
+                        <h4 className="font-display font-semibold text-sm text-white">{lic.name}</h4>
+                        <p className="text-[11px] text-slate-500 font-mono">€{lic.price.toLocaleString("nl-NL")}</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={isVisible}
+                          onChange={(e) => {
+                            if (onUpdateLicenseVisibility) {
+                              onUpdateLicenseVisibility({
+                                ...(licenseVisibility || {}),
+                                [lic.id]: e.target.checked
+                              });
+                            }
+                          }}
+                          className="rounded border-slate-800 bg-slate-900 text-[#ea580c] h-5.5 w-5.5 cursor-pointer accent-[#ea580c]"
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         )}
 

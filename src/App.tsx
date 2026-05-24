@@ -53,6 +53,28 @@ export default function App() {
     localStorage.setItem("@luchtvaart_oranjestad_announcement", text);
   };
 
+  // Pilot licenses visibility settings (for displaying in BrevettenHub)
+  const [licenseVisibility, setLicenseVisibility] = React.useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem("@luchtvaart_oranjestad_license_visibility");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Failed to parse license visibility:", e);
+    }
+    return {
+      "helicopter": true,
+      "small-plane": true,
+      "large-plane": true
+    };
+  });
+
+  const handleUpdateLicenseVisibility = (visibility: Record<string, boolean>) => {
+    setLicenseVisibility(visibility);
+    localStorage.setItem("@luchtvaart_oranjestad_license_visibility", JSON.stringify(visibility));
+  };
+
   // Auto-switch to staff tab if redirecting back from Discord with code parameter
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -353,7 +375,7 @@ export default function App() {
 
         {/* Tab 2: Vliegbrevetten portfolio & purchasing */}
         {currentTab === "brevetten" && (
-          <BrevettenHub />
+          <BrevettenHub licenseVisibility={licenseVisibility} />
         )}
 
         {/* Tab 3: Airplanes/Helicopters Marketplace */}
@@ -379,6 +401,8 @@ export default function App() {
             onUpdateAircraftList={handleUpdateAircraftList}
             announcement={announcement}
             onUpdateAnnouncement={handleUpdateAnnouncement}
+            licenseVisibility={licenseVisibility}
+            onUpdateLicenseVisibility={handleUpdateLicenseVisibility}
           />
         )}
       </main>

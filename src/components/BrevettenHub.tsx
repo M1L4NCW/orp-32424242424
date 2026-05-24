@@ -3,11 +3,63 @@ import { Award, CheckCircle2, MessageSquare } from "lucide-react";
 import { LICENSES } from "../data";
 import { License, PilotLogbook } from "../types";
 
-export default function BrevettenHub() {
-  const [selectedLicense, setSelectedLicense] = React.useState<License | null>(LICENSES[0]);
+interface BrevettenHubProps {
+  licenseVisibility?: Record<string, boolean>;
+}
+
+export default function BrevettenHub({ licenseVisibility }: BrevettenHubProps) {
+  const filteredLicenses = LICENSES.filter(lic => {
+    return !licenseVisibility || licenseVisibility[lic.id] !== false;
+  });
+
+  const [selectedLicense, setSelectedLicense] = React.useState<License | null>(
+    filteredLicenses.length > 0 ? filteredLicenses[0] : null
+  );
+
+  // If selectedLicense is not in filteredLicenses, select the first visible one
+  React.useEffect(() => {
+    if (selectedLicense && !filteredLicenses.some(l => l.id === selectedLicense.id)) {
+      setSelectedLicense(filteredLicenses.length > 0 ? filteredLicenses[0] : null);
+    } else if (!selectedLicense && filteredLicenses.length > 0) {
+      setSelectedLicense(filteredLicenses[0]);
+    }
+  }, [licenseVisibility, filteredLicenses, selectedLicense]);
+
+  if (filteredLicenses.length === 0) {
+    return (
+      <div className="bg-slate-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header section */}
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-[#ea580c] font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-[#ea580c]/10 rounded-full border border-[#ea580c]/10">
+              Aviation Academy Oranjestad
+            </span>
+            <h1 className="font-display font-bold text-4xl mt-3 tracking-tight text-white">
+              Vliegbrevetten & Licenties
+            </h1>
+            <p className="text-slate-400 mt-4 leading-relaxed text-sm">
+              Behaal uw officiële bevoegdheden voor Helikopters, Vliegtuig Klein of Vliegtuig Groot via onze vliegschool.
+            </p>
+          </div>
+
+          <div className="text-center py-20 bg-slate-950 border border-slate-800 rounded-3xl p-8 max-w-xl mx-auto space-y-6">
+            <div className="h-16 w-16 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto text-[#ea580c] border border-slate-800 animate-pulse">
+              <Award className="h-8 w-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-white font-sans">Geen Brevetten Beschikbaar</h3>
+              <p className="text-xs text-slate-400 font-light max-w-md mx-auto leading-relaxed font-sans">
+                Er zijn momenteel geen vliegbrevetten beschikbaar voor aanvraag in de vliegschool. Beheer kan de zichtbaarheid activeren in het Personeelsportaal.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-slate-900 text-white py-12">
+    <div className="bg-slate-900 text-white py-12 mr-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header section */}
@@ -53,7 +105,7 @@ export default function BrevettenHub() {
           {/* Left Column: Licenses list selector */}
           <div className="lg:col-span-5 space-y-4">
             <h3 className="text-xs font-mono text-slate-400 tracking-wider font-bold uppercase mb-2 block">Beschikbare Categorieën</h3>
-            {LICENSES.map((lic) => {
+            {filteredLicenses.map((lic) => {
               const isSelected = selectedLicense?.id === lic.id;
 
               return (
