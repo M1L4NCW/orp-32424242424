@@ -57,7 +57,7 @@ export default function Footer({ setCurrentTab }: { setCurrentTab: (tab: string)
                 <div>
                   <span className="block mb-1">Onze Discord community</span>
                   <a 
-                    href="https://discord.gg/your-invite-link" 
+                    href="https://discord.gg/FACgeTSrAR" 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     className="inline-flex items-center gap-1.5 bg-[#ea580c]/10 border border-[#ea580c]/30 hover:bg-[#ea580c]/20 text-[#ea580c] text-xs font-mono font-semibold px-2.5 py-1 rounded transition-colors"
