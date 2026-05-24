@@ -2055,9 +2055,14 @@ export default function StaffPortal({
     if (data.action === 'save') {
       var lic = data.license;
       var targetRow = 12;
-      var lastRow = sheet.getLastRow();
-      if (lastRow >= 12) {
-        targetRow = lastRow + 1;
+      
+      // Zoek de eerste vrije rij beginnend bij rij 12 door kolom B (Citizen ID) te scannen
+      var values = sheet.getRange("B12:B2000").getValues();
+      for (var i = 0; i < values.length; i++) {
+        if (!values[i][0] || values[i][0].toString().trim() === "") {
+          targetRow = 12 + i;
+          break;
+        }
       }
       
       sheet.getRange(targetRow, 1, 1, 9).setValues([[
