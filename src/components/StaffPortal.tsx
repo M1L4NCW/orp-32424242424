@@ -6,6 +6,19 @@ import {
 } from "lucide-react";
 import { IssuedLicense, AircraftInventory, Aircraft, StaffUser } from "../types";
 import { LICENSES } from "../data";
+import { User } from "firebase/auth";
+import { 
+  initGoogleSheetsAuth, 
+  signInWithGoogle, 
+  getGoogleAccessToken, 
+  logoutGoogle, 
+  getSavedSpreadsheetId, 
+  saveSpreadsheetId, 
+  fetchSpreadsheetTitle, 
+  saveLicenseToSheet, 
+  syncLicensesToSheet,
+  extractSpreadsheetId
+} from "../lib/googleSheets";
 
 interface StaffPortalProps {
   issuedLicenses: IssuedLicense[];
@@ -225,6 +238,148 @@ export default function StaffPortal({
       console.error("Failed to write session to localStorage:", e);
     }
   }, [isLoggedIn, loggedInUser]);
+
+  // Google Sheets integration states
+  const [googleUser, setGoogleUser] = React.useState<User | null>(null);
+  const [googleToken, setGoogleToken] = React.useState<string | null>(null);
+  const [sheetIdInput, setSheetIdInput] = React.useState<string>(getSavedSpreadsheetId());
+  const [connectedSheetTitle, setConnectedSheetTitle] = React.useState<string>("");
+  const [isVerifyingSheet, setIsVerifyingSheet] = React.useState<boolean>(false);
+  const [sheetError, setSheetError] = React.useState<string | null>(null);
+  const [sheetSuccess, setSheetSuccess] = React.useState<string | null>(null);
+  const [isSyncingAll, setIsSyncingAll] = React.useState<boolean>(false);
+
+  // Initialize and check Google authentication
+  React.useEffect(() => {
+    const unsubscribe = initGoogleSheetsAuth(
+      (user, token) => {
+        setGoogleUser(user);
+        setGoogleToken(token);
+        // Verify sheet if ID is saved
+        const savedId = getSavedSpreadsheetId();
+        if (savedId) {
+          setIsVerifyingSheet(true);
+          fetchSpreadsheetTitle(savedId, token)
+            .then(title => {
+              setConnectedSheetTitle(title);
+              setSheetError(null);
+            })
+            .catch(err => {
+              setSheetError(err.message || "Fout bij laden van rekenblad.");
+            })
+            .finally(() => {
+              setIsVerifyingSheet(false);
+            });
+        }
+      },
+      () => {
+        setGoogleUser(null);
+        setGoogleToken(null);
+        setConnectedSheetTitle("");
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Google Sheets sign-in trigger
+  const handleGoogleSignIn = async () => {
+    try {
+      setSheetError(null);
+      setSheetSuccess(null);
+      const result = await signInWithGoogle();
+      if (result) {
+        setGoogleUser(result.user);
+        setGoogleToken(result.accessToken);
+        setSheetSuccess("Succesvol aangemeld met Google!");
+        // If sheetId is already input, check its connectivity
+        const extracted = extractSpreadsheetId(sheetIdInput);
+        if (extracted) {
+          saveSpreadsheetId(extracted);
+          setIsVerifyingSheet(true);
+          const title = await fetchSpreadsheetTitle(extracted, result.accessToken);
+          setConnectedSheetTitle(title);
+        }
+      }
+    } catch (err: any) {
+      setSheetError(err.message || "Inloggen met Google mislukt. Probeer het opnieuw.");
+    }
+  };
+
+  // Google Sheets sign-out trigger
+  const handleGoogleSignOut = async () => {
+    try {
+      await logoutGoogle();
+      setGoogleUser(null);
+      setGoogleToken(null);
+      setConnectedSheetTitle("");
+      setSheetSuccess("Google sessie beëindigd.");
+    } catch (err: any) {
+      setSheetError(err.message || "Fout bij afmelden.");
+    }
+  };
+
+  // Verify and Save Sheet ID trigger
+  const handleVerifyAndSaveSheet = async () => {
+    const extracted = extractSpreadsheetId(sheetIdInput);
+    if (!extracted) {
+      setSheetError("Controleer de Link of ID van het Google Sheets bestand!");
+      return;
+    }
+    
+    saveSpreadsheetId(extracted);
+    
+    if (!googleToken) {
+      setSheetError("Meld eerst aan met een Google-account om de verbinding te controleren!");
+      return;
+    }
+
+    setIsVerifyingSheet(true);
+    setSheetError(null);
+    setSheetSuccess(null);
+
+    try {
+      const title = await fetchSpreadsheetTitle(extracted, googleToken);
+      setConnectedSheetTitle(title);
+      setSheetSuccess(`Succesvol verbonden met spreadsheet: "${title}".`);
+    } catch (err: any) {
+      setConnectedSheetTitle("");
+      setSheetError(err.message || "Kon geen verbinding maken. Verifieer de machtigingen van dit bestand.");
+    } finally {
+      setIsVerifyingSheet(false);
+    }
+  };
+
+  // Sync all licenses starting at Row 12
+  const handleSyncAllLicenses = async () => {
+    const extracted = extractSpreadsheetId(sheetIdInput);
+    if (!extracted) {
+      setSheetError("Vul een geldige Google Sheets ID of Link in.");
+      return;
+    }
+
+    if (!googleToken) {
+      setSheetError("U moet eerst inloggen met een Google-account.");
+      return;
+    }
+
+    const confirmSync = window.confirm(
+      `Weet u zeker dat u alle ${issuedLicenses.length} brevetten wilt synchroniseren? Dit overschrijft alle bestaande rijen vanaf rij 12 in het geselecteerde Google-rekenblad.`
+    );
+    if (!confirmSync) return;
+
+    setIsSyncingAll(true);
+    setSheetError(null);
+    setSheetSuccess(null);
+
+    try {
+      const syncedCount = await syncLicensesToSheet(extracted, googleToken, issuedLicenses);
+      setSheetSuccess(`Succesvol ${syncedCount} brevetten chronologisch weggeschreven vanaf rij 12!`);
+    } catch (err: any) {
+      setSheetError(err.message || "Fout tijdens het exporteren van alle brevetten.");
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
 
   const getDiscordRedirectUri = () => {
     const host = window.location.hostname;
@@ -627,6 +782,20 @@ export default function StaffPortal({
 
     onAddLicense(newLic);
     setFormSuccess(true);
+
+    // Save to Google Sheets if connected and configured
+    const savedSheetId = getSavedSpreadsheetId();
+    if (savedSheetId && googleToken) {
+      setSheetError(null);
+      saveLicenseToSheet(savedSheetId, googleToken, newLic)
+        .then(({ row }) => {
+          setSheetSuccess(`Brevet ${newLic.id} ook direct succesvol weggeschreven op rij ${row} in Google Sheets!`);
+        })
+        .catch(err => {
+          console.error("Error saving to sheet on submit:", err);
+          setSheetError(`Fout bij wegschrijven naar Google Sheets: ${err.message || "Onbekende fout"}`);
+        });
+    }
     
     // Reset form fields
     setNewCitName("");
@@ -641,20 +810,23 @@ export default function StaffPortal({
   // Add User handler (Owner feature)
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUser = newUsername.trim().toLowerCase();
-    const cleanPass = newPassword.trim();
     const cleanName = newFullname.trim();
 
-    if (!cleanUser || !cleanPass || !cleanName) {
-      setPortalAlertMessage("Vul alle velden in!");
+    if (!cleanName) {
+      setPortalAlertMessage("Vul de volledige naam van de medewerker in!");
       return;
     }
 
-    const usernameExists = staffAccounts.some(u => u.username.toLowerCase() === cleanUser);
-    if (usernameExists) {
-      setPortalAlertMessage("Gebruikersnaam bestaat al!");
-      return;
+    // Auto-generate a safe, unique username for backward compatibility
+    const baseUser = cleanName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    let cleanUser = baseUser;
+    let counter = 1;
+    while (staffAccounts.some(u => u.username.toLowerCase() === cleanUser)) {
+      cleanUser = `${baseUser}_${counter}`;
+      counter++;
     }
+
+    const cleanPass = "oranjestad_staff";
 
     const newUser: StaffUser = {
       id: "u-" + Date.now(),
@@ -667,7 +839,7 @@ export default function StaffPortal({
     const nextAccounts = [...staffAccounts, newUser];
     saveAccounts(nextAccounts);
 
-    setUserCreatedMessage(`Account voor '${cleanName}' met rol '${newUserRole}' is succesvol aangemaakt!`);
+    setUserCreatedMessage(`Medewerker '${cleanName}' met rol '${newUserRole}' is succesvol geregistreerd!`);
     setNewUsername("");
     setNewPassword("");
     setNewFullname("");
@@ -734,8 +906,7 @@ export default function StaffPortal({
           {/* Login box */}
           <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden text-left">
             <div className="absolute top-0 left-0 right-0 h-1 bg-[#ea580c]"></div>
-            
-            {discordLoginError && (
+                    {discordLoginError && (
               <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs space-y-1 font-light">
                 <div className="flex gap-2 items-start">
                   <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
@@ -745,16 +916,6 @@ export default function StaffPortal({
                 <p className="text-[9px] text-slate-400 leading-normal pt-1 border-t border-rose-500/10 mt-1 font-sans">
                   Inloggen via Discord is 100% veilig: het gebruikt uw Discord rollen om uw rechten te verifiëren zonder wachtwoorden bloot te stellen.
                 </p>
-              </div>
-            )}
-
-            {loginError && (
-              <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs space-y-1 font-light flex gap-2 items-start">
-                <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
-                <div>
-                  <span className="font-semibold text-rose-300 font-sans">Inloggen Mislukt</span>
-                  <p className="text-[11px] leading-relaxed text-slate-300 mt-0.5 font-sans">{loginError}</p>
-                </div>
               </div>
             )}
 
@@ -773,62 +934,6 @@ export default function StaffPortal({
               )}
               <span>{isDiscordLoggingIn ? "Bezig met verbinden..." : "Inloggen met Discord"}</span>
             </button>
-
-            <div className="relative my-6 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800"></div>
-              </div>
-              <span className="relative bg-slate-950 px-3 text-[10px] font-mono font-bold text-slate-500 tracking-widest uppercase">
-                OF MET GEBRUIKERSNAAM
-              </span>
-            </div>
-
-            <form onSubmit={handleCredentialsSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Gebruikersnaam
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Bijv: jan_d"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:border-[#ea580c] focus:outline-none transition-all focus:ring-1 focus:ring-[#ea580c] font-sans"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                    Wachtwoord
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-[10px] text-slate-500 hover:text-[#ea580c] transition-colors focus:outline-none"
-                  >
-                    {showPassword ? "Verberg" : "Toon"}
-                  </button>
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:border-[#ea580c] focus:outline-none transition-all focus:ring-1 focus:ring-[#ea580c] font-sans"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 text-white font-bold font-mono py-3 rounded-xl text-xs tracking-wider uppercase transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 mt-2"
-              >
-                <ShieldCheck className="h-4 w-4 text-[#ea580c]" />
-                <span>Inloggen met inloggegevens</span>
-              </button>
-            </form>
           </div>
         </div>
       </div>
@@ -1583,6 +1688,186 @@ export default function StaffPortal({
                 )}
               </div>
 
+              {/* Google Sheets Synchronization Panel */}
+              <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl text-left font-sans">
+                <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
+                  <FileSpreadsheet className="h-5 w-5 text-emerald-500" />
+                  <h3 className="font-display font-semibold text-base text-white font-sans text-left">Google Sheets Koppeling & Synchronisatie</h3>
+                </div>
+
+                <p className="text-xs text-slate-400 font-light mb-6 font-sans">
+                  Koppel een Google Spreadsheet om alle uitgeschreven vliegbrevetten direct en automatisch door te sturen. 
+                  Volgens uw richtlijn worden de brevetten chronologisch ingevuld <strong>vanaf rij 12</strong>.
+                </p>
+
+                {sheetSuccess && (
+                  <div className="mb-4 p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex gap-1.5 items-start font-sans">
+                    <CheckCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-emerald-500" />
+                    <div>
+                      <span className="font-semibold block text-emerald-300">Succes!</span>
+                      <p className="text-emerald-400 font-light mt-0.5">{sheetSuccess}</p>
+                    </div>
+                  </div>
+                )}
+
+                {sheetError && (
+                  <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex gap-1.5 items-start font-sans">
+                    <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
+                    <div>
+                      <span className="font-semibold block text-rose-300">Fout opgetreden</span>
+                      <p className="text-rose-400 font-light mt-0.5">{sheetError}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-sans">
+                  
+                  {/* Left Column: Account Connection state */}
+                  <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                      1. Google Account Verbinding
+                    </h4>
+                    
+                    {googleUser ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-900">
+                          {googleUser.photoURL ? (
+                            <img 
+                              src={googleUser.photoURL} 
+                              alt="Avatar" 
+                              className="w-8 h-8 rounded-full"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs uppercase">
+                              {googleUser.displayName?.charAt(0) || "G"}
+                            </div>
+                          )}
+                          <div className="text-left">
+                            <div className="text-xs font-bold text-white leading-tight">
+                              {googleUser.displayName || "Google Gebruiker"}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                              {googleUser.email}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-emerald-400 font-light flex items-center gap-1.5 bg-emerald-500/5 py-1 px-2.5 rounded border border-emerald-500/10">
+                          <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                          <span>Gezond verbonden met Google APIs</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleGoogleSignOut}
+                          className="text-xs text-rose-400 hover:text-rose-300 transition-colors font-mono uppercase bg-rose-500/5 hover:bg-rose-500/10 border border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer block"
+                        >
+                          Google Account Afmelden
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 text-left">
+                        <p className="text-[11px] text-slate-400 font-light leading-relaxed">
+                          Meld aan met uw Google-account om de app schrijfrechten te geven in uw spreadsheetbestanden. 
+                          Dit is 100% beveiligd via Google OAuth.
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={handleGoogleSignIn}
+                          className="gsi-material-button w-full flex items-center justify-center cursor-pointer transition-all hover:scale-[1.01]"
+                          style={{
+                            background: "white",
+                            border: "1px solid #747775",
+                            borderRadius: "12px",
+                            color: "#1f1f1f",
+                            fontFamily: "Inter, sans-serif",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            height: "38px",
+                            padding: "0 16px",
+                            position: "relative",
+                            textAlign: "center"
+                          }}
+                        >
+                          <div className="gsi-material-button-icon" style={{ marginRight: "12px", display: "flex", alignItems: "center" }}>
+                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: "block", width: "18px", height: "18px" }}>
+                              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                            </svg>
+                          </div>
+                          <span>Meld aan met Google</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Spreadsheet ID Setup */}
+                  <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                      2. Rekenblad Koppelen & Sync
+                    </h4>
+
+                    <div className="space-y-2 text-left">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold leading-normal font-sans text-left">
+                        Rekenblad ID of Volledige URL
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Plak URL of ID (bijv: https://docs.google.com/spreadsheets/d/...)"
+                        value={sheetIdInput}
+                        onChange={(e) => setSheetIdInput(e.target.value)}
+                        className="w-full bg-slate-1000 border border-slate-850 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      {connectedSheetTitle ? (
+                        <div className="bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10 text-left">
+                          <span className="text-[10px] text-slate-500 block font-mono font-bold leading-none uppercase">GEKOPPELD DOCUMENT</span>
+                          <span className="text-xs text-white font-bold block mt-1 leading-normal truncate font-sans">
+                            {connectedSheetTitle}
+                          </span>
+                          <span className="text-[9px] text-emerald-400 font-mono block mt-1">
+                            Rij 12 start • Auto-append actief!
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900 text-left text-[11px] text-slate-500 font-light font-sans leading-relaxed">
+                          Nog geen Google Sheets bestand geverifieerd. Geef hierboven een ID op en druk op 'Koppeling Verharden'.
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-2.5">
+                        <button
+                          type="button"
+                          onClick={handleVerifyAndSaveSheet}
+                          disabled={isVerifyingSheet}
+                          className="px-3.5 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/20 text-slate-200 hover:text-white rounded-xl text-xs font-mono font-bold uppercase cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5"
+                        >
+                          {isVerifyingSheet ? "Controleren..." : "Koppeling Verharden"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSyncAllLicenses}
+                          disabled={isSyncingAll || !googleToken || !sheetIdInput}
+                          className={`px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 border border-emerald-600 text-slate-950 font-bold font-mono text-xs rounded-xl uppercase flex items-center gap-1.5 transition-all cursor-pointer ${
+                            (!googleToken || !sheetIdInput) ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.02]"
+                          }`}
+                        >
+                          {isSyncingAll ? "Exporteren..." : "Sync alle brevetten"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
               {/* Row 4: Homepage Announcement Management for management */}
               <div className="bg-slate-950 border border-slate-800/80 p-6 rounded-3xl">
                 <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
@@ -1879,6 +2164,64 @@ export default function StaffPortal({
         {/* OWNER USER ACCOUNTS MANAGEMENTS */}
         {activeTab === "users" && (role === "owner" || role === "manager") && (
           <div className="space-y-8 animate-fade-in max-w-3xl mx-auto">
+            
+            {/* ADD A NEW EMPLOYEE FOR WAGES/PAYROLL */}
+            <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-xl text-left font-sans">
+              <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
+                <Plus className="h-5 w-5 text-emerald-400" />
+                <h3 className="font-display font-semibold text-base text-white font-sans text-left">Nieuwe Medewerker Toevoegen</h3>
+              </div>
+
+              <p className="text-xs text-slate-400 font-light mb-6">
+                Registreer hier een nieuwe medewerker. Deze naam wordt direct opgenomen in de selectielijsten voor brevetuitgave, commissies en loonregisters.
+              </p>
+
+              {userCreatedMessage && (
+                <div className="mb-4 p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center gap-2 font-sans font-light">
+                  <CheckCircle className="h-4.5 w-4.5 text-emerald-400 shrink-0" />
+                  <span>{userCreatedMessage}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-wider mb-1.5">
+                    Volledige Naam van de Medewerker
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newFullname}
+                    onChange={(e) => setNewFullname(e.target.value)}
+                    placeholder="Bijv: Jan de Vries"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none transition-all focus:ring-1 focus:ring-emerald-500 font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-wider mb-1.5">
+                    Functie / Rol binnen het Portaal
+                  </label>
+                  <select
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value as any)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 outline-none text-xs text-slate-300 font-sans focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="medewerker">Medewerker (Instructeur / Grondpersoneel)</option>
+                    <option value="manager">Manager (Mede-Directie)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/20 text-white font-bold font-mono py-2.5 rounded-xl text-xs tracking-wider uppercase transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-4 w-4 text-emerald-400" />
+                  <span>Medewerker Registreren</span>
+                </button>
+              </form>
+            </div>
+
             {/* LIST of active registered users accounts */}
             <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-xl">
               <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
