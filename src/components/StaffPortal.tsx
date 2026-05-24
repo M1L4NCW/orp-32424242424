@@ -204,40 +204,14 @@ export default function StaffPortal({
   const [loginError, setLoginError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
 
-  // Load session from local storage on mount
+  // Clear existing saved session on load and do not restore it
   React.useEffect(() => {
     try {
-      const savedSession = localStorage.getItem("@luchtvaart_oranjestad_staff_session");
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        if (parsed && parsed.isLoggedIn && parsed.user) {
-          setIsLoggedIn(parsed.isLoggedIn);
-          setLoggedInUser(parsed.user);
-          setRole(parsed.user.role);
-          setFullname(parsed.user.fullname);
-          setIssuedByTeacher(parsed.user.fullname);
-        }
-      }
+      localStorage.removeItem("@luchtvaart_oranjestad_staff_session");
     } catch (e) {
-      console.error("Failed to restore session from localStorage:", e);
+      console.error("Failed to clean up session from localStorage:", e);
     }
   }, []);
-
-  // Save/sync session to localStorage whenever states change
-  React.useEffect(() => {
-    try {
-      if (isLoggedIn && loggedInUser) {
-        localStorage.setItem("@luchtvaart_oranjestad_staff_session", JSON.stringify({
-          isLoggedIn,
-          user: loggedInUser
-        }));
-      } else {
-        localStorage.removeItem("@luchtvaart_oranjestad_staff_session");
-      }
-    } catch (e) {
-      console.error("Failed to write session to localStorage:", e);
-    }
-  }, [isLoggedIn, loggedInUser]);
 
   // Google Sheets integration states
   const [googleUser, setGoogleUser] = React.useState<User | null>(null);
