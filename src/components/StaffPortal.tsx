@@ -214,6 +214,18 @@ export default function StaffPortal({
   }, []);
 
   // Google Sheets integration states
+  const [googleConnectionType, setGoogleConnectionType] = React.useState<"auth" | "webapp">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("@luchtvaart_oranjestad_sheets_conn_type") as "auth" | "webapp") || "webapp";
+    }
+    return "webapp";
+  });
+  const [sheetsWebAppUrl, setSheetsWebAppUrl] = React.useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("@luchtvaart_oranjestad_sheets_webapp_url") || "";
+    }
+    return "";
+  });
   const [googleUser, setGoogleUser] = React.useState<User | null>(null);
   const [googleToken, setGoogleToken] = React.useState<string | null>(null);
   const [sheetIdInput, setSheetIdInput] = React.useState<string>(getSavedSpreadsheetId());
@@ -223,37 +235,65 @@ export default function StaffPortal({
   const [sheetSuccess, setSheetSuccess] = React.useState<string | null>(null);
   const [isSyncingAll, setIsSyncingAll] = React.useState<boolean>(false);
 
+  // Auto-connect on mount if webapp type is configured
+  React.useEffect(() => {
+    if (googleConnectionType === "webapp" && sheetsWebAppUrl) {
+      setIsVerifyingSheet(true);
+      fetch("/api/sheets-web-app", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: sheetsWebAppUrl, action: "ping" })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setConnectedSheetTitle(data.title || "Gekoppeld Rekenblad (Apps Script)");
+          }
+        })
+        .catch(err => {
+          console.warn("Silent check on webapp loading failed:", err);
+        })
+        .finally(() => {
+          setIsVerifyingSheet(false);
+        });
+    }
+  }, []);
+
   // Initialize and check Google authentication
   React.useEffect(() => {
     const unsubscribe = initGoogleSheetsAuth(
       (user, token) => {
         setGoogleUser(user);
         setGoogleToken(token);
-        // Verify sheet if ID is saved
-        const savedId = getSavedSpreadsheetId();
-        if (savedId) {
-          setIsVerifyingSheet(true);
-          fetchSpreadsheetTitle(savedId, token)
-            .then(title => {
-              setConnectedSheetTitle(title);
-              setSheetError(null);
-            })
-            .catch(err => {
-              setSheetError(err.message || "Fout bij laden van rekenblad.");
-            })
-            .finally(() => {
-              setIsVerifyingSheet(false);
-            });
+        // Verify sheet if ID is saved and we use standard auth mode
+        if (googleConnectionType === "auth") {
+          const savedId = getSavedSpreadsheetId();
+          if (savedId) {
+            setIsVerifyingSheet(true);
+            fetchSpreadsheetTitle(savedId, token)
+              .then(title => {
+                setConnectedSheetTitle(title);
+                setSheetError(null);
+              })
+              .catch(err => {
+                setSheetError(err.message || "Fout bij laden van rekenblad.");
+              })
+              .finally(() => {
+                setIsVerifyingSheet(false);
+              });
+          }
         }
       },
       () => {
         setGoogleUser(null);
         setGoogleToken(null);
-        setConnectedSheetTitle("");
+        if (googleConnectionType === "auth") {
+          setConnectedSheetTitle("");
+        }
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [googleConnectionType]);
 
   // Google Sheets sign-in trigger
   const handleGoogleSignIn = async () => {
@@ -292,6 +332,52 @@ export default function StaffPortal({
     }
   };
 
+  // Verify Web App url connectivity
+  const handleVerifyWebApp = async (urlToTest: string) => {
+    const trimmedUrl = urlToTest.trim();
+    if (!trimmedUrl) {
+      setSheetError("Voer een geldige Google Apps Script Web-app URL in.");
+      return;
+    }
+    if (!trimmedUrl.startsWith("https://script.google.com/")) {
+      setSheetError("De URL moet een geldige Google Apps Script macro URL zijn beginnend met https://script.google.com/");
+      return;
+    }
+
+    setIsVerifyingSheet(true);
+    setSheetError(null);
+    setSheetSuccess(null);
+
+    try {
+      const res = await fetch("/api/sheets-web-app", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: trimmedUrl, action: "ping" })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error || "Fout bij verbinden met Apps Script.");
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        setConnectedSheetTitle(data.title || "Gekoppeld Rekenblad (Apps Script)");
+        localStorage.setItem("@luchtvaart_oranjestad_sheets_webapp_url", trimmedUrl);
+        localStorage.setItem("@luchtvaart_oranjestad_sheets_conn_type", "webapp");
+        setGoogleConnectionType("webapp");
+        setSheetSuccess(`Succesvol gekoppeld aan de Google Sheet via Apps Script: "${data.title || "Rekenblad"}"!`);
+      } else {
+        throw new Error(data.error || "Onbekende fout van Google Apps Script.");
+      }
+    } catch (err: any) {
+      setConnectedSheetTitle("");
+      setSheetError(err.message || "Kon geen verbinding maken met het Google Apps Script. Controleer de URL en of de Web-app is geïmplementeerd voor 'Iedereen' (Anyone).");
+    } finally {
+      setIsVerifyingSheet(false);
+    }
+  };
+
   // Verify and Save Sheet ID trigger
   const handleVerifyAndSaveSheet = async () => {
     const extracted = extractSpreadsheetId(sheetIdInput);
@@ -325,6 +411,53 @@ export default function StaffPortal({
 
   // Sync all licenses starting at Row 12
   const handleSyncAllLicenses = async () => {
+    if (googleConnectionType === "webapp") {
+      const trimmedUrl = sheetsWebAppUrl.trim();
+      if (!trimmedUrl) {
+        setSheetError("Vul een geldige Google Apps Script Web-app URL in.");
+        return;
+      }
+      
+      const confirmSync = window.confirm(
+        `Weet u zeker dat u alle ${issuedLicenses.length} brevetten wilt synchroniseren? Dit overschrijft alle bestaande rijen vanaf rij 12 via uw Google Apps Script.`
+      );
+      if (!confirmSync) return;
+
+      setIsSyncingAll(true);
+      setSheetError(null);
+      setSheetSuccess(null);
+
+      try {
+        const res = await fetch("/api/sheets-web-app", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            url: trimmedUrl, 
+            action: "sync", 
+            payload: { licenses: issuedLicenses } 
+          })
+        });
+
+        if (!res.ok) {
+          const errJson = await res.json();
+          throw new Error(errJson.error || "Fout bij verbinden met Apps Script.");
+        }
+
+        const data = await res.json();
+        if (data.success) {
+          setSheetSuccess(`Succesvol ${data.count} brevetten chronologisch gesynchroniseerd via Google Apps Script vanaf rij 12!`);
+        } else {
+          throw new Error(data.error || "Onbekende fout van Google Apps Script.");
+        }
+      } catch (err: any) {
+        setSheetError(err.message || "Fout tijdens het exporteren met Google Apps Script.");
+      } finally {
+        setIsSyncingAll(false);
+      }
+      return;
+    }
+
+    // Standard Auth type fallback
     const extracted = extractSpreadsheetId(sheetIdInput);
     if (!extracted) {
       setSheetError("Vul een geldige Google Sheets ID of Link in.");
@@ -758,17 +891,51 @@ export default function StaffPortal({
     setFormSuccess(true);
 
     // Save to Google Sheets if connected and configured
-    const savedSheetId = getSavedSpreadsheetId();
-    if (savedSheetId && googleToken) {
-      setSheetError(null);
-      saveLicenseToSheet(savedSheetId, googleToken, newLic)
-        .then(({ row }) => {
-          setSheetSuccess(`Brevet ${newLic.id} ook direct succesvol weggeschreven op rij ${row} in Google Sheets!`);
+    if (googleConnectionType === "webapp") {
+      const trimmedUrl = sheetsWebAppUrl.trim();
+      if (trimmedUrl) {
+        setSheetError(null);
+        fetch("/api/sheets-web-app", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            url: trimmedUrl, 
+            action: "save", 
+            payload: { license: newLic } 
+          })
         })
-        .catch(err => {
-          console.error("Error saving to sheet on submit:", err);
-          setSheetError(`Fout bij wegschrijven naar Google Sheets: ${err.message || "Onbekende fout"}`);
-        });
+          .then(async res => {
+            if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.error || "Fout bij wegschrijven via Apps Script.");
+            }
+            return res.json();
+          })
+          .then(data => {
+            if (data.success) {
+              setSheetSuccess(`Brevet ${newLic.id} ook direct succesvol weggeschreven op rij ${data.row} via uw Google Apps Script!`);
+            } else {
+              throw new Error(data.error || "Google Apps Script gaf een foutmelding.");
+            }
+          })
+          .catch(err => {
+            console.error("Error saving to sheet on submit via webapp:", err);
+            setSheetError(`Fout bij wegschrijven naar Sheets via Apps Script: ${err.message || "Onbekende fout"}`);
+          });
+      }
+    } else {
+      const savedSheetId = getSavedSpreadsheetId();
+      if (savedSheetId && googleToken) {
+        setSheetError(null);
+        saveLicenseToSheet(savedSheetId, googleToken, newLic)
+          .then(({ row }) => {
+            setSheetSuccess(`Brevet ${newLic.id} ook direct succesvol weggeschreven op rij ${row} in Google Sheets!`);
+          })
+          .catch(err => {
+            console.error("Error saving to sheet on submit:", err);
+            setSheetError(`Fout bij wegschrijven naar Google Sheets: ${err.message || "Onbekende fout"}`);
+          });
+      }
     }
     
     // Reset form fields
@@ -1685,161 +1852,444 @@ export default function StaffPortal({
                 )}
 
                 {sheetError && (
-                  <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex gap-1.5 items-start font-sans">
-                    <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
-                    <div>
-                      <span className="font-semibold block text-rose-300">Fout opgetreden</span>
-                      <p className="text-rose-400 font-light mt-0.5">{sheetError}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-sans">
-                  
-                  {/* Left Column: Account Connection state */}
-                  <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
-                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-                      1. Google Account Verbinding
-                    </h4>
-                    
-                    {googleUser ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-900">
-                          {googleUser.photoURL ? (
-                            <img 
-                              src={googleUser.photoURL} 
-                              alt="Avatar" 
-                              className="w-8 h-8 rounded-full"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs uppercase">
-                              {googleUser.displayName?.charAt(0) || "G"}
-                            </div>
-                          )}
-                          <div className="text-left">
-                            <div className="text-xs font-bold text-white leading-tight">
-                              {googleUser.displayName || "Google Gebruiker"}
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                              {googleUser.email}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-[11px] text-emerald-400 font-light flex items-center gap-1.5 bg-emerald-500/5 py-1 px-2.5 rounded border border-emerald-500/10">
-                          <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                          <span>Gezond verbonden met Google APIs</span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={handleGoogleSignOut}
-                          className="text-xs text-rose-400 hover:text-rose-300 transition-colors font-mono uppercase bg-rose-500/5 hover:bg-rose-500/10 border border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer block"
-                        >
-                          Google Account Afmelden
-                        </button>
+                  <div className="mb-4 space-y-3 font-sans">
+                    <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex gap-1.5 items-start">
+                      <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
+                      <div>
+                        <span className="font-semibold block text-rose-300">Fout opgetreden</span>
+                        <p className="text-rose-400 font-light mt-0.5">{sheetError}</p>
                       </div>
-                    ) : (
-                      <div className="space-y-3 text-left">
-                        <p className="text-[11px] text-slate-400 font-light leading-relaxed">
-                          Meld aan met uw Google-account om de app schrijfrechten te geven in uw spreadsheetbestanden. 
-                          Dit is 100% beveiligd via Google OAuth.
-                        </p>
+                    </div>
 
-                        <button
-                          type="button"
-                          onClick={handleGoogleSignIn}
-                          className="gsi-material-button w-full flex items-center justify-center cursor-pointer transition-all hover:scale-[1.01]"
-                          style={{
-                            background: "white",
-                            border: "1px solid #747775",
-                            borderRadius: "12px",
-                            color: "#1f1f1f",
-                            fontFamily: "Inter, sans-serif",
-                            fontSize: "12px",
-                            fontWeight: "500",
-                            height: "38px",
-                            padding: "0 16px",
-                            position: "relative",
-                            textAlign: "center"
-                          }}
-                        >
-                          <div className="gsi-material-button-icon" style={{ marginRight: "12px", display: "flex", alignItems: "center" }}>
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: "block", width: "18px", height: "18px" }}>
-                              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                            </svg>
+                    {(sheetError.toLowerCase().includes("unauthorized-domain") || 
+                      sheetError.toLowerCase().includes("unauthorised-domain") ||
+                      sheetError.toLowerCase().includes("unauthorized domain") ||
+                      sheetError.toLowerCase().includes("domein is niet geautoriseerd")) && (
+                      <div className="p-4 bg-amber-500/10 border border-amber-500/30 text-slate-350 text-xs rounded-2xl space-y-3.5 text-left">
+                        <div className="flex gap-2 items-start">
+                          <AlertCircle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+                          <div>
+                            <span className="font-semibold text-amber-400 block text-sm">Domein niet Geautoriseerd in Firebase Auth</span>
+                            <p className="text-slate-300 font-light mt-1 leading-relaxed">
+                              Google weigert inlogpogingen vanaf dit testdomein omdat het nog niet is geautoriseerd in uw Firebase-project <strong>project-80143359-a411-4e87-a08</strong>.
+                            </p>
                           </div>
-                          <span>Meld aan met Google</span>
-                        </button>
+                        </div>
+                        
+                        <div className="bg-slate-900 border border-slate-850 p-4 rounded-xl space-y-3 text-left">
+                          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">Stappen om dit direct op lossen:</span>
+                          <ol className="list-decimal list-inside space-y-2 text-xs text-slate-300 pl-0.5 leading-relaxed">
+                            <li>
+                              Bezoek uw Firebase-instellingen via deze link:{" "}
+                              <a 
+                                href="https://console.firebase.google.com/project/project-80143359-a411-4e87-a08/authentication/settings" 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-amber-400 font-semibold underline hover:text-amber-300 inline-flex items-center gap-0.5"
+                              >
+                                Firebase Panel settings openen ↗
+                              </a>
+                            </li>
+                            <li>Klik op het tabblad <strong>"Authorized domains"</strong> (Geautoriseerde domeinen).</li>
+                            <li>Klik op de knop <strong>"Add domain"</strong> (Domein toevoegen).</li>
+                            <li>
+                              Voeg dit exacte domein toe: <code className="bg-slate-950 px-2 py-1 text-amber-300 rounded font-mono font-bold select-all inline-block border border-slate-800">{window.location.hostname}</code>
+                            </li>
+                            <li>
+                              Klik op <strong>Opslaan</strong> (Save). Herlaad daarna deze pagina en log direct succesvol in!
+                            </li>
+                          </ol>
+                        </div>
                       </div>
                     )}
                   </div>
+                )}
 
-                  {/* Right Column: Spreadsheet ID Setup */}
-                  <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
-                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-                      2. Rekenblad Koppelen & Sync
-                    </h4>
+                {/* Switcher tabs for choosing Connection Type */}
+                <div className="flex flex-wrap gap-2.5 p-1 bg-slate-1000 border border-slate-900 rounded-2xl mb-6 max-w-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGoogleConnectionType("webapp");
+                      localStorage.setItem("@luchtvaart_oranjestad_sheets_conn_type", "webapp");
+                      setConnectedSheetTitle("");
+                      setSheetError(null);
+                      setSheetSuccess(null);
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-xl text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
+                      googleConnectionType === "webapp"
+                        ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/10"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    🚀 Type A: Google Apps Script Web-App
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGoogleConnectionType("auth");
+                      localStorage.setItem("@luchtvaart_oranjestad_sheets_conn_type", "auth");
+                      setConnectedSheetTitle("");
+                      setSheetError(null);
+                      setSheetSuccess(null);
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-xl text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
+                      googleConnectionType === "auth"
+                        ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/10"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    🔑 Type B: Google Login (Firebase Auth)
+                  </button>
+                </div>
 
-                    <div className="space-y-2 text-left">
-                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold leading-normal font-sans text-left">
-                        Rekenblad ID of Volledige URL
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Plak URL of ID (bijv: https://docs.google.com/spreadsheets/d/...)"
-                        value={sheetIdInput}
-                        onChange={(e) => setSheetIdInput(e.target.value)}
-                        className="w-full bg-slate-1000 border border-slate-850 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
-                      />
-                    </div>
+                {googleConnectionType === "webapp" ? (
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start font-sans">
+                    
+                    {/* Left/Main Column: Apps Script explanation and URL entry */}
+                    <div className="xl:col-span-7 bg-slate-900/40 border border-slate-850 p-6 rounded-2xl space-y-4 text-left">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-emerald-400" />
+                        <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+                          Google Apps Script Web-App Koppeling (Aanbevolen)
+                        </h4>
+                      </div>
+                      
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-light">
+                        De Apps Script-methode maakt direct verbinding met uw Google Spreadsheet via een server-to-server verbinding. 
+                        Dit <strong>omzeilt alle browserblokkades, pop-up- en iframe-beperkingen</strong> in AI Studio en blijft permanent actief zonder na een uur te verlopen!
+                      </p>
 
-                    <div className="space-y-3">
-                      {connectedSheetTitle ? (
-                        <div className="bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10 text-left">
-                          <span className="text-[10px] text-slate-500 block font-mono font-bold leading-none uppercase">GEKOPPELD DOCUMENT</span>
-                          <span className="text-xs text-white font-bold block mt-1 leading-normal truncate font-sans">
-                            {connectedSheetTitle}
-                          </span>
-                          <span className="text-[9px] text-emerald-400 font-mono block mt-1">
-                            Rij 12 start • Auto-append actief!
-                          </span>
+                      <div className="space-y-2 text-left pt-2">
+                        <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold leading-normal">
+                          Google Apps Script Web-app URL
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="https://script.google.com/macros/s/..."
+                          value={sheetsWebAppUrl}
+                          onChange={(e) => {
+                            setSheetsWebAppUrl(e.target.value);
+                            localStorage.setItem("@luchtvaart_oranjestad_sheets_webapp_url", e.target.value);
+                          }}
+                          className="w-full bg-slate-1000 border border-slate-850 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                        />
+                      </div>
+
+                      <div className="pt-2">
+                        {connectedSheetTitle ? (
+                          <div className="bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10 text-left mb-4">
+                            <span className="text-[10px] text-slate-500 block font-mono font-bold leading-none uppercase">GECOUPLEERD REKENBLAD</span>
+                            <span className="text-xs text-white font-bold block mt-1 leading-normal truncate font-sans">
+                              {connectedSheetTitle}
+                            </span>
+                            <span className="text-[9px] text-emerald-400 font-mono block mt-1">
+                              Rij 12 start • Auto-append actief! (Apps Script)
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900 text-left text-[11px] text-slate-500 leading-relaxed font-light mb-4">
+                            Nog geen verbinding geverifieerd. Voer hierboven uw Web-app URL in en klik hieronder op 'Koppeling Controleren'.
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyWebApp(sheetsWebAppUrl)}
+                            disabled={isVerifyingSheet || !sheetsWebAppUrl}
+                            className={`px-3.5 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/20 text-slate-200 hover:text-white rounded-xl text-xs font-mono font-bold uppercase cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5`}
+                          >
+                            {isVerifyingSheet ? "Verbinden..." : "Koppeling Controleren"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleSyncAllLicenses}
+                            disabled={isSyncingAll || !sheetsWebAppUrl}
+                            className={`px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 border border-emerald-600 text-slate-950 font-bold font-mono text-xs rounded-xl uppercase flex items-center gap-1.5 transition-all cursor-pointer ${
+                              !sheetsWebAppUrl ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.02]"
+                            }`}
+                          >
+                            {isSyncingAll ? "Exporteren..." : "Sync alle brevetten"}
+                          </button>
                         </div>
-                      ) : (
-                        <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900 text-left text-[11px] text-slate-500 font-light font-sans leading-relaxed">
-                          Nog geen Google Sheets bestand geverifieerd. Geef hierboven een ID op en druk op 'Koppeling Verharden'.
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-2.5">
-                        <button
-                          type="button"
-                          onClick={handleVerifyAndSaveSheet}
-                          disabled={isVerifyingSheet}
-                          className="px-3.5 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/20 text-slate-200 hover:text-white rounded-xl text-xs font-mono font-bold uppercase cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5"
-                        >
-                          {isVerifyingSheet ? "Controleren..." : "Koppeling Verharden"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleSyncAllLicenses}
-                          disabled={isSyncingAll || !googleToken || !sheetIdInput}
-                          className={`px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 border border-emerald-600 text-slate-950 font-bold font-mono text-xs rounded-xl uppercase flex items-center gap-1.5 transition-all cursor-pointer ${
-                            (!googleToken || !sheetIdInput) ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.02]"
-                          }`}
-                        >
-                          {isSyncingAll ? "Exporteren..." : "Sync alle brevetten"}
-                        </button>
                       </div>
                     </div>
-                  </div>
 
-                </div>
+                    {/* Right Column: Code instructions */}
+                    <div className="xl:col-span-5 bg-slate-950 border border-slate-900 p-5 rounded-2xl text-left space-y-4">
+                      <h5 className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                        Instructies (1 minuut instellen):
+                      </h5>
+                      
+                      <ol className="list-decimal list-outside space-y-2 text-xs text-slate-350 pl-4 font-light leading-relaxed">
+                        <li>Open uw Google Spreadsheet.</li>
+                        <li>Klik op <strong>Extensies</strong> &gt; <strong>Apps Script</strong>.</li>
+                        <li>Plak de code hieronder erin (verwijder eventuele bestaande code).</li>
+                        <li>Klik rechtsboven op <strong>Implementeren</strong> &gt; <strong>Nieuwe implementatie</strong>.</li>
+                        <li>Klik op het tandwiel en selecteer <strong>Web-app</strong>.</li>
+                        <li>Uitvoeren als: <strong>Mij</strong> (u), Toegang: <strong>Iedereen</strong> (Anyone).</li>
+                        <li>Klik op Implementeren, machtig uw script & kopieer de Web-app URL hiernaast!</li>
+                      </ol>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-mono font-bold text-emerald-400 block uppercase">Apps Script Code Template</span>
+                        <div className="relative">
+                          <textarea
+                            readOnly
+                            rows={6}
+                            value={`function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
+    
+    if (data.action === 'ping') {
+      return ContentService.createTextOutput(JSON.stringify({ 
+        success: true, 
+        title: ss.getName() 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    if (data.action === 'save') {
+      var lic = data.license;
+      var targetRow = 12;
+      var lastRow = sheet.getLastRow();
+      if (lastRow >= 12) {
+        targetRow = lastRow + 1;
+      }
+      
+      sheet.getRange(targetRow, 1, 1, 9).setValues([[
+        lic.citizenId,
+        lic.citizenName,
+        lic.licenseType === "helicopter" ? "Helikopter" : lic.licenseType === "small-plane" ? "Vliegtuig Klein" : "Vliegtuig Groot",
+        lic.issuedBy,
+        lic.issueDate,
+        lic.remarks || "-",
+        lic.employeeCommissionPaid ? "Ja" : "Nee",
+        lic.taxPaid ? "Ja" : "Nee",
+        lic.id
+      ]]);
+      
+      return ContentService.createTextOutput(JSON.stringify({ 
+        success: true, 
+        row: targetRow 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    if (data.action === 'sync') {
+      var sorted = data.licenses || [];
+      var lastRow = sheet.getLastRow();
+      if (lastRow >= 12) {
+        sheet.getRange(12, 1, Math.max(1, lastRow - 11), 9).clearContent();
+      }
+      
+      if (sorted.length === 0) {
+        return ContentService.createTextOutput(JSON.stringify({ success: true, count: 0 }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      var rows = sorted.map(function(lic) {
+        return [
+          lic.citizenId,
+          lic.citizenName,
+          lic.licenseType === "helicopter" ? "Helikopter" : lic.licenseType === "small-plane" ? "Vliegtuig Klein" : "Vliegtuig Groot",
+          lic.issuedBy,
+          lic.issueDate,
+          lic.remarks || "-",
+          lic.employeeCommissionPaid ? "Ja" : "Nee",
+          lic.taxPaid ? "Ja" : "Nee",
+          lic.id
+        ];
+      });
+      
+      sheet.getRange(12, 1, rows.length, 9).setValues(rows);
+      
+      return ContentService.createTextOutput(JSON.stringify({ 
+        success: true, 
+        count: rows.length 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ error: "Onbekende actie." }))
+      .setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`}
+                            className="w-full bg-slate-1000 border border-slate-900 rounded-lg p-3 text-[10px] font-mono text-slate-350 focus:outline-none select-all"
+                          />
+                          <div className="absolute bottom-2 right-2 text-[9px] font-mono text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-900 pointer-events-none">
+                            Klik om te selecteren
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-sans">
+                    
+                    {/* Left Column: Account Connection state */}
+                    <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
+                      <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                        1. Google Account Verbinding
+                      </h4>
+                      
+                      {googleUser ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-900">
+                            {googleUser.photoURL ? (
+                              <img 
+                                src={googleUser.photoURL} 
+                                alt="Avatar" 
+                                className="w-8 h-8 rounded-full"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs uppercase">
+                                {googleUser.displayName?.charAt(0) || "G"}
+                              </div>
+                            )}
+                            <div className="text-left">
+                              <div className="text-xs font-bold text-white leading-tight">
+                                {googleUser.displayName || "Google Gebruiker"}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                {googleUser.email}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-[11px] text-emerald-400 font-light flex items-center gap-1.5 bg-emerald-500/5 py-1 px-2.5 rounded border border-emerald-500/10">
+                            <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                            <span>Gezond verbonden met Google APIs</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleGoogleSignOut}
+                            className="text-xs text-rose-400 hover:text-rose-300 transition-colors font-mono uppercase bg-rose-500/5 hover:bg-rose-500/10 border border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer block"
+                          >
+                            Google Account Afmelden
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 text-left">
+                          {typeof window !== "undefined" && window.self !== window.top && (
+                            <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 rounded-xl space-y-1.5 leading-relaxed font-sans shadow-lg shadow-amber-500/5">
+                              <div className="flex gap-1.5 items-center font-bold">
+                                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                                <span>AI Studio Preview Melding</span>
+                              </div>
+                              <p className="text-slate-300 font-light text-[10px]">
+                                Google blokkeert authenticatie-popups binnen de AI Studio voorbeeldweergave (iframe). Klik rechtsboven op <strong className="text-white">"Open in new tab"</strong> of open de ontwikkelings-URL in een nieuw tabblad om succesvol met Google in te loggen!
+                              </p>
+                            </div>
+                          )}
+
+                          <p className="text-[11px] text-slate-400 font-light leading-relaxed">
+                            Meld aan met uw Google-account om de app schrijfrechten te geven in uw spreadsheetbestanden. 
+                            Dit is 100% beveiligd via Google OAuth.
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={handleGoogleSignIn}
+                            className="gsi-material-button w-full flex items-center justify-center cursor-pointer transition-all hover:scale-[1.01]"
+                            style={{
+                              background: "white",
+                              border: "1px solid #747775",
+                              borderRadius: "12px",
+                              color: "#1f1f1f",
+                              fontFamily: "Inter, sans-serif",
+                              fontSize: "12px",
+                              fontWeight: "500",
+                              height: "38px",
+                              padding: "0 16px",
+                              position: "relative",
+                              textAlign: "center"
+                            }}
+                          >
+                            <div className="gsi-material-button-icon" style={{ marginRight: "12px", display: "flex", alignItems: "center" }}>
+                              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: "block", width: "18px", height: "18px" }}>
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                              </svg>
+                            </div>
+                            <span>Meld aan met Google</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column: Spreadsheet ID Setup */}
+                    <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
+                      <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                        2. Rekenblad Koppelen & Sync
+                      </h4>
+
+                      <div className="space-y-2 text-left">
+                        <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold leading-normal">
+                          Rekenblad ID of Volledige URL
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Plak URL of ID (bijv: https://docs.google.com/spreadsheets/d/...)"
+                          value={sheetIdInput}
+                          onChange={(e) => setSheetIdInput(e.target.value)}
+                          className="w-full bg-slate-1000 border border-slate-850 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        {connectedSheetTitle ? (
+                          <div className="bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10 text-left">
+                            <span className="text-[10px] text-slate-500 block font-mono font-bold leading-none uppercase">GEKOPPELD DOCUMENT</span>
+                            <span className="text-xs text-white font-bold block mt-1 leading-normal truncate font-sans">
+                              {connectedSheetTitle}
+                            </span>
+                            <span className="text-[9px] text-emerald-400 font-mono block mt-1">
+                              Rij 12 start • Auto-append actief!
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900 text-left text-[11px] text-slate-500 font-light leading-relaxed">
+                            Nog geen Google Sheets bestand geverifieerd. Geef hierboven een ID op en druk op 'Koppeling Verharden'.
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2.5">
+                          <button
+                            type="button"
+                            onClick={handleVerifyAndSaveSheet}
+                            disabled={isVerifyingSheet}
+                            className="px-3.5 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/20 text-slate-200 hover:text-white rounded-xl text-xs font-mono font-bold uppercase cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5"
+                          >
+                            {isVerifyingSheet ? "Controleren..." : "Koppeling Verharden"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleSyncAllLicenses}
+                            disabled={isSyncingAll || !googleToken || !sheetIdInput}
+                            className={`px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 border border-emerald-600 text-slate-950 font-bold font-mono text-xs rounded-xl uppercase flex items-center gap-1.5 transition-all cursor-pointer ${
+                              (!googleToken || !sheetIdInput) ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.02]"
+                            }`}
+                          >
+                            {isSyncingAll ? "Exporteren..." : "Sync alle brevetten"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
               </div>
 
               {/* Row 4: Homepage Announcement Management for management */}

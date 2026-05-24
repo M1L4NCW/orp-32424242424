@@ -13,6 +13,11 @@ import { IssuedLicense } from "../types";
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
+// Force active Firebase logout on initial script load to clear session memory across page refreshes
+auth.signOut().catch(err => {
+  console.warn("Quiet initial authentication session cleanup:", err);
+});
+
 // Provider Configured with Google Sheets and Drive Scopes
 const provider = new GoogleAuthProvider();
 provider.addScope("https://www.googleapis.com/auth/spreadsheets");

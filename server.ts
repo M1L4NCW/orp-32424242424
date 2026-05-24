@@ -374,6 +374,55 @@ Geef je reactie precies in het gevraagde JSON formaat.`;
 
 
 // -------------------------------------------------------------
+// GOOGLE SHEETS APPS SCRIPT PROXY ENDPOINT (ALTERNATIVE COUPLING)
+// -------------------------------------------------------------
+
+app.post("/api/sheets-web-app", async (req, res) => {
+  const { url, action, payload } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: "Web-app URL van Google Apps Script ontbreekt." });
+  }
+
+  if (!url.startsWith("https://script.google.com/")) {
+    return res.status(400).json({ error: "De ingevoerde URL is geen geldige Google Apps Script URL. Deze moet beginnen met https://script.google.com/" });
+  }
+
+  try {
+    // Send request server-to-server to bypass all browser-side CORS and frame restrictions
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ action, ...payload })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google Apps Script reageerde met status ${response.status}`);
+    }
+
+    const text = await response.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      throw new Error("Ongeldig antwoord van Google Apps Script. Server-uitvoer was geen geldige JSON.");
+    }
+    
+    if (parsed.error) {
+      return res.status(400).json({ error: parsed.error });
+    }
+
+    return res.json(parsed);
+  } catch (error: any) {
+    console.error("Fout in Google Apps Script Web App proxy:", error);
+    return res.status(500).json({ error: `Koppeling mislukt: ${error.message || error}` });
+  }
+});
+
+
+// -------------------------------------------------------------
 // SECURE DISCORD OAUTH2 ENDPOINTS (OPTION 2)
 // -------------------------------------------------------------
 
