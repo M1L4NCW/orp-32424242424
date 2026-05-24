@@ -159,15 +159,27 @@ export default function StaffPortal({
 }: StaffPortalProps) {
   
   // Accounts management
-  const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>([]);
-
-  const getDiscordRedirectUri = () => {
-    const host = window.location.hostname;
-    if (host.includes("luchtvaart-oranjestad.nl")) {
-      return "https://www.luchtvaart-oranjestad.nl/";
+  const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>(() => {
+    try {
+      const stored = localStorage.getItem(STAFF_ACCOUNTS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Clean up old default test users to prepare for live operation
+          return parsed.filter(u => {
+            if (u.username === "owner" && u.passwordHash === "oranjestad_owner") return false;
+            if (u.username === "manager" && u.passwordHash === "oranjestad123") return false;
+            if (u.username === "medewerker" && u.passwordHash === "vliegen456") return false;
+            if (u.username === "MikeL" || u.fullname === "Mike Lapose") return false;
+            return true;
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load staff accounts synchronously:", e);
     }
-    return window.location.origin + "/";
-  };
+    return [];
+  });
 
   // Authentication states
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
@@ -178,6 +190,49 @@ export default function StaffPortal({
   const [fullname, setFullname] = React.useState("");
   const [loginError, setLoginError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
+
+  // Load session from local storage on mount
+  React.useEffect(() => {
+    try {
+      const savedSession = localStorage.getItem("@luchtvaart_oranjestad_staff_session");
+      if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        if (parsed && parsed.isLoggedIn && parsed.user) {
+          setIsLoggedIn(parsed.isLoggedIn);
+          setLoggedInUser(parsed.user);
+          setRole(parsed.user.role);
+          setFullname(parsed.user.fullname);
+          setIssuedByTeacher(parsed.user.fullname);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to restore session from localStorage:", e);
+    }
+  }, []);
+
+  // Save/sync session to localStorage whenever states change
+  React.useEffect(() => {
+    try {
+      if (isLoggedIn && loggedInUser) {
+        localStorage.setItem("@luchtvaart_oranjestad_staff_session", JSON.stringify({
+          isLoggedIn,
+          user: loggedInUser
+        }));
+      } else {
+        localStorage.removeItem("@luchtvaart_oranjestad_staff_session");
+      }
+    } catch (e) {
+      console.error("Failed to write session to localStorage:", e);
+    }
+  }, [isLoggedIn, loggedInUser]);
+
+  const getDiscordRedirectUri = () => {
+    const host = window.location.hostname;
+    if (host.includes("luchtvaart-oranjestad.nl")) {
+      return "https://www.luchtvaart-oranjestad.nl/";
+    }
+    return window.location.origin + "/";
+  };
 
   // Active view in portal
   const [activeTab, setActiveTab] = React.useState<"registry" | "issue" | "administration" | "users" | "fleet">("registry");
@@ -530,7 +585,7 @@ export default function StaffPortal({
 
   // Automatically log out if the current logged-in user is deleted or altered in local staff accounts
   React.useEffect(() => {
-    if (isLoggedIn && loggedInUser) {
+    if (isLoggedIn && loggedInUser && staffAccounts.length > 0) {
       // Find matches on either ID or username
       const stillExists = staffAccounts.find(
         u => u.id === loggedInUser.id || u.username.toLowerCase() === loggedInUser.username.toLowerCase()
@@ -677,19 +732,29 @@ export default function StaffPortal({
           </div>
 
           {/* Login box */}
-          <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+          <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden text-left">
             <div className="absolute top-0 left-0 right-0 h-1 bg-[#ea580c]"></div>
             
             {discordLoginError && (
               <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs space-y-1 font-light">
                 <div className="flex gap-2 items-start">
                   <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
-                  <span className="font-semibold text-rose-300">Discord Authenticatie Mislukt</span>
+                  <span className="font-semibold text-rose-300 font-sans">Discord Authenticatie Mislukt</span>
                 </div>
-                <p className="text-[11px] leading-relaxed text-slate-300">{discordLoginError}</p>
-                <p className="text-[9px] text-slate-400 leading-normal pt-1 border-t border-rose-500/10 mt-1">
-                  Inloggen via Discord is 100% veilig: het portaal gebruikt server-side code om uw Discord rollen uit te lezen zonder uw bot-token of client-secrets bloot te stellen aan inspecteurs.
+                <p className="text-[11px] leading-relaxed text-slate-300 font-sans">{discordLoginError}</p>
+                <p className="text-[9px] text-slate-400 leading-normal pt-1 border-t border-rose-500/10 mt-1 font-sans">
+                  Inloggen via Discord is 100% veilig: het gebruikt uw Discord rollen om uw rechten te verifiëren zonder wachtwoorden bloot te stellen.
                 </p>
+              </div>
+            )}
+
+            {loginError && (
+              <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs space-y-1 font-light flex gap-2 items-start">
+                <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
+                <div>
+                  <span className="font-semibold text-rose-300 font-sans">Inloggen Mislukt</span>
+                  <p className="text-[11px] leading-relaxed text-slate-300 mt-0.5 font-sans">{loginError}</p>
+                </div>
               </div>
             )}
 
@@ -708,6 +773,62 @@ export default function StaffPortal({
               )}
               <span>{isDiscordLoggingIn ? "Bezig met verbinden..." : "Inloggen met Discord"}</span>
             </button>
+
+            <div className="relative my-6 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-800"></div>
+              </div>
+              <span className="relative bg-slate-950 px-3 text-[10px] font-mono font-bold text-slate-500 tracking-widest uppercase">
+                OF MET GEBRUIKERSNAAM
+              </span>
+            </div>
+
+            <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Gebruikersnaam
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Bijv: jan_d"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:border-[#ea580c] focus:outline-none transition-all focus:ring-1 focus:ring-[#ea580c] font-sans"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                    Wachtwoord
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-[10px] text-slate-500 hover:text-[#ea580c] transition-colors focus:outline-none"
+                  >
+                    {showPassword ? "Verberg" : "Toon"}
+                  </button>
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:border-[#ea580c] focus:outline-none transition-all focus:ring-1 focus:ring-[#ea580c] font-sans"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 text-white font-bold font-mono py-3 rounded-xl text-xs tracking-wider uppercase transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 mt-2"
+              >
+                <ShieldCheck className="h-4 w-4 text-[#ea580c]" />
+                <span>Inloggen met inloggegevens</span>
+              </button>
+            </form>
           </div>
         </div>
       </div>
