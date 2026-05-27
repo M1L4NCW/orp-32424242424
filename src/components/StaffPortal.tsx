@@ -25,6 +25,7 @@ interface StaffPortalProps {
   onAddLicense: (lic: IssuedLicense) => void;
   onRemoveLicense: (id: string) => void;
   onUpdateLicense: (lic: IssuedLicense) => void;
+  onClearAllLicenses?: () => void;
   inventory: AircraftInventory[];
   onUpdateInventory: (updated: AircraftInventory[]) => void;
   aircraftList: Aircraft[];
@@ -161,6 +162,7 @@ export default function StaffPortal({
   onAddLicense, 
   onRemoveLicense,
   onUpdateLicense,
+  onClearAllLicenses,
   inventory, 
   onUpdateInventory,
   aircraftList,
@@ -1576,6 +1578,28 @@ export default function StaffPortal({
             });
           };
 
+          // Clear all licenses / reset bookkeeping
+          const handleClearBookkeeping = () => {
+            if (role !== "owner" && role !== "manager") {
+              setPortalAlertMessage("Alleen de directie (Eigenaar / Manager) mag de boekhouding wissen!");
+              return;
+            }
+            const confirmFirst = window.confirm(
+              "GEVAAR: Weet u zeker dat u de volledige boekhouding wilt wissen? Hiermee worden alle geregistreerde diploma's/vliegbrevetten permanent uit de lokale database verwijderd en alle winsten op €0 gezet."
+            );
+            if (!confirmFirst) return;
+
+            const confirmSecond = window.confirm(
+              "LAATSTE WAARSCHUWING: Dit kan niet ongedaan worden gemaakt. Alle rekeningen, commissie-uitbetalingen, belastingen en winstpotjes worden gereset. Wilt u doorgaan?"
+            );
+            if (confirmSecond) {
+              if (onClearAllLicenses) {
+                onClearAllLicenses();
+                setPortalAlertMessage("De boekhouding is met succes volledig gewist en gereset naar €0!");
+              }
+            }
+          };
+
           return (
             <div className="space-y-8 animate-fade-in font-mono text-xs text-slate-300">
               
@@ -1596,9 +1620,19 @@ export default function StaffPortal({
                     </h3>
                   </div>
                   <div className="pt-4 border-t border-slate-900">
-                    <p className="text-[10px] font-sans text-slate-400 font-light block leading-relaxed">
+                    <p className="text-[10px] font-sans text-slate-400 font-light block leading-relaxed mb-3">
                       Alle netto winst na aftrek van inkoopkosten, belasting (7% + 15k), management fees en medewerker premies.
                     </p>
+                    {(role === "owner" || role === "manager") && (
+                      <button
+                        type="button"
+                        onClick={handleClearBookkeeping}
+                        className="w-full bg-rose-500 hover:bg-rose-650 text-white font-sans font-bold tracking-wider text-[10px] uppercase rounded-xl py-2 cursor-pointer transition-all hover:scale-[1.01] shadow-lg shadow-rose-500/10 flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Boekhouding Resetten</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 

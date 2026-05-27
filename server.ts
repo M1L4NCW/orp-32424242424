@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import fs from "fs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 
@@ -370,6 +371,60 @@ Geef je reactie precies in het gevraagde JSON formaat.`;
       }
     });
   }
+});
+
+
+// -------------------------------------------------------------
+// PORTAL PERSISTECE ENDPOINTS (SHARED STATE FOR ALL USERS)
+// -------------------------------------------------------------
+
+const PORTAL_DATA_PATH = path.join(process.cwd(), "portal-data.json");
+
+// Helper to read portal data securely
+const readPortalData = () => {
+  try {
+    if (fs.existsSync(PORTAL_DATA_PATH)) {
+      const data = fs.readFileSync(PORTAL_DATA_PATH, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Error reading portal-data.json:", error);
+  }
+  return {
+    issuedLicenses: [],
+    inventory: [],
+    aircraftList: [],
+    announcement: ""
+  };
+};
+
+// Helper to write portal data securely
+const writePortalData = (data: any) => {
+  try {
+    fs.writeFileSync(PORTAL_DATA_PATH, JSON.stringify(data, null, 2), "utf-8");
+  } catch (error) {
+    console.error("Error writing portal-data.json:", error);
+  }
+};
+
+app.get("/api/portal-data", (req, res) => {
+  const data = readPortalData();
+  res.json(data);
+});
+
+app.post("/api/portal-data", (req, res) => {
+  const existing = readPortalData();
+  const { issuedLicenses, inventory, aircraftList, announcement } = req.body;
+
+  const updated = {
+    issuedLicenses: issuedLicenses !== undefined ? issuedLicenses : existing.issuedLicenses,
+    inventory: inventory !== undefined ? inventory : existing.inventory,
+    aircraftList: aircraftList !== undefined ? aircraftList : existing.aircraftList,
+    announcement: announcement !== undefined ? announcement : existing.announcement,
+  };
+
+  writePortalData(updated);
+  res.json({ success: true });
 });
 
 

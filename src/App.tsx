@@ -51,6 +51,7 @@ export default function App() {
   const handleUpdateAnnouncement = (text: string) => {
     setAnnouncement(text);
     localStorage.setItem("@luchtvaart_oranjestad_announcement", text);
+    saveSharedPortalData({ announcement: text });
   };
 
   // Pilot licenses visibility settings (for displaying in BrevettenHub)
@@ -83,7 +84,7 @@ export default function App() {
     }
   }, []);
 
-  // Load state from local storage on mount
+  // Load state from local storage on mount (personal logbook & enrolled courses)
   React.useEffect(() => {
     try {
       const storedLogbook = localStorage.getItem(STORAGE_KEY);
@@ -94,52 +95,64 @@ export default function App() {
       if (storedCourses) {
         setEnrolledCourses(JSON.parse(storedCourses));
       }
-      
-      // Automated operational reset: enforce clean slate (empty licenses & profit) for live operation
-      const opMigrationCompleted = localStorage.getItem("@luchtvaart_oranjestad_op_migration_v2");
-      let activeLicenses = DEFAULT_ISSUED_LICENSES;
-      if (!opMigrationCompleted) {
-        localStorage.setItem(LICENSES_KEY, JSON.stringify([]));
-        localStorage.setItem("@luchtvaart_oranjestad_op_migration_v2", "true");
-        activeLicenses = [];
-      } else {
-        const storedLicenses = localStorage.getItem(LICENSES_KEY);
-        if (storedLicenses) {
-          try {
-            activeLicenses = JSON.parse(storedLicenses);
-          } catch (e) {
-            activeLicenses = [];
-          }
-        } else {
-          activeLicenses = DEFAULT_ISSUED_LICENSES;
-          localStorage.setItem(LICENSES_KEY, JSON.stringify(DEFAULT_ISSUED_LICENSES));
-        }
-      }
-      setIssuedLicenses(activeLicenses);
-
-      const storedInventory = localStorage.getItem(INVENTORY_KEY);
-      if (storedInventory) {
-        setInventory(JSON.parse(storedInventory));
-      } else {
-        setInventory(DEFAULT_INVENTORY);
-        localStorage.setItem(INVENTORY_KEY, JSON.stringify(DEFAULT_INVENTORY));
-      }
-
-      const storedAircraft = localStorage.getItem(AIRCRAFT_LIST_KEY);
-      if (storedAircraft) {
-        const parsed: Aircraft[] = JSON.parse(storedAircraft).filter(
-          (a: Aircraft) => !["cessna-172", "cirrus-sr22", "robinson-r44", "airbus-h135", "embraer-phenom"].includes(a.id)
-        );
-        setAircraftList(parsed);
-        localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(parsed));
-      } else {
-        setAircraftList(AIRCRAFT_LIST);
-        localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(AIRCRAFT_LIST));
-      }
     } catch (e) {
-      console.error("Local storage fail:", e);
+      console.error("Local storage personal cache fail:", e);
     }
   }, []);
+
+  // Shared portal data loader and real-time poller (everyone sees the same data)
+  React.useEffect(() => {
+    const fetchSharedData = async () => {
+      try {
+        const response = await fetch("/api/portal-data");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.issuedLicenses !== undefined) {
+            setIssuedLicenses(data.issuedLicenses);
+            localStorage.setItem(LICENSES_KEY, JSON.stringify(data.issuedLicenses));
+          }
+          if (data.inventory !== undefined) {
+            setInventory(data.inventory);
+            localStorage.setItem(INVENTORY_KEY, JSON.stringify(data.inventory));
+          }
+          if (data.aircraftList !== undefined) {
+            setAircraftList(data.aircraftList);
+            localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(data.aircraftList));
+          }
+          if (data.announcement !== undefined) {
+            setAnnouncement(data.announcement);
+            localStorage.setItem("@luchtvaart_oranjestad_announcement", data.announcement);
+          }
+        }
+      } catch (error) {
+        console.error("Mislukt om gedeelde portaalgegevens op te halen:", error);
+      }
+    };
+
+    fetchSharedData();
+
+    // Poll values from the server every 5 seconds so they sync in real-time for all active clients
+    const interval = setInterval(fetchSharedData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Helper to save shared data server-side
+  const saveSharedPortalData = async (payload: {
+    issuedLicenses?: IssuedLicense[];
+    inventory?: AircraftInventory[];
+    aircraftList?: Aircraft[];
+    announcement?: string;
+  }) => {
+    try {
+      await fetch("/api/portal-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.error("Fout met opslaan van gedeelde portaalgegevens op server:", e);
+    }
+  };
 
   // Save logbook state Changes
   const saveLogbook = (updated: PilotLogbook) => {
@@ -158,6 +171,7 @@ export default function App() {
     } catch (e) {
       console.error("Error saving inventory:", e);
     }
+    saveSharedPortalData({ inventory: updatedInv });
   };
 
   const handleUpdateAircraftList = (updatedList: Aircraft[]) => {
@@ -167,6 +181,7 @@ export default function App() {
     } catch (e) {
       console.error("Error saving aircraft list:", e);
     }
+    saveSharedPortalData({ aircraftList: updatedList });
   };
 
   const handleAddLicense = (newLic: IssuedLicense) => {
@@ -177,6 +192,7 @@ export default function App() {
     } catch (e) {
       console.error("Error saving licenses:", e);
     }
+    saveSharedPortalData({ issuedLicenses: updatedLics });
   };
 
   const handleRemoveLicense = (licId: string) => {
@@ -187,6 +203,7 @@ export default function App() {
     } catch (e) {
       console.error("Error saving licenses:", e);
     }
+    saveSharedPortalData({ issuedLicenses: updatedLics });
   };
 
   const handleUpdateLicense = (updatedLic: IssuedLicense) => {
@@ -197,6 +214,17 @@ export default function App() {
     } catch (e) {
       console.error("Error saving licenses:", e);
     }
+    saveSharedPortalData({ issuedLicenses: updatedLics });
+  };
+
+  const handleClearAllLicenses = () => {
+    setIssuedLicenses([]);
+    try {
+      localStorage.setItem(LICENSES_KEY, JSON.stringify([]));
+    } catch (e) {
+      console.error("Error clearing licenses:", e);
+    }
+    saveSharedPortalData({ issuedLicenses: [] });
   };
 
   // State mutators
@@ -395,6 +423,7 @@ export default function App() {
             onAddLicense={handleAddLicense}
             onRemoveLicense={handleRemoveLicense}
             onUpdateLicense={handleUpdateLicense}
+            onClearAllLicenses={handleClearAllLicenses}
             inventory={inventory}
             onUpdateInventory={handleUpdateInventory}
             aircraftList={aircraftList}
