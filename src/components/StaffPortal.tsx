@@ -34,6 +34,12 @@ interface StaffPortalProps {
   onUpdateAnnouncement: (text: string) => void;
   licenseVisibility?: Record<string, boolean>;
   onUpdateLicenseVisibility?: (visibility: Record<string, boolean>) => void;
+  propGoogleConnectionType?: "auth" | "webapp";
+  onUpdateGoogleConnectionType?: (type: "auth" | "webapp") => void;
+  propSheetsWebAppUrl?: string;
+  onUpdateSheetsWebAppUrl?: (url: string) => void;
+  propSavedSpreadsheetId?: string;
+  onUpdateSavedSpreadsheetId?: (id: string) => void;
 }
 
 // Default staff accounts
@@ -170,7 +176,13 @@ export default function StaffPortal({
   announcement,
   onUpdateAnnouncement,
   licenseVisibility,
-  onUpdateLicenseVisibility
+  onUpdateLicenseVisibility,
+  propGoogleConnectionType,
+  onUpdateGoogleConnectionType,
+  propSheetsWebAppUrl,
+  onUpdateSheetsWebAppUrl,
+  propSavedSpreadsheetId,
+  onUpdateSavedSpreadsheetId
 }: StaffPortalProps) {
   
   // Accounts management
@@ -237,7 +249,26 @@ export default function StaffPortal({
   const [sheetSuccess, setSheetSuccess] = React.useState<string | null>(null);
   const [isSyncingAll, setIsSyncingAll] = React.useState<boolean>(false);
 
-  // Auto-connect on mount if webapp type is configured
+  // Sync state with props loaded from the database
+  React.useEffect(() => {
+    if (propGoogleConnectionType !== undefined && propGoogleConnectionType !== googleConnectionType) {
+      setGoogleConnectionType(propGoogleConnectionType);
+    }
+  }, [propGoogleConnectionType]);
+
+  React.useEffect(() => {
+    if (propSheetsWebAppUrl !== undefined && propSheetsWebAppUrl !== sheetsWebAppUrl) {
+      setSheetsWebAppUrl(propSheetsWebAppUrl);
+    }
+  }, [propSheetsWebAppUrl]);
+
+  React.useEffect(() => {
+    if (propSavedSpreadsheetId !== undefined && propSavedSpreadsheetId !== sheetIdInput) {
+      setSheetIdInput(propSavedSpreadsheetId);
+    }
+  }, [propSavedSpreadsheetId]);
+
+  // Auto-connect on mount/poll if webapp type is configured
   React.useEffect(() => {
     if (googleConnectionType === "webapp" && sheetsWebAppUrl) {
       setIsVerifyingSheet(true);
@@ -258,8 +289,10 @@ export default function StaffPortal({
         .finally(() => {
           setIsVerifyingSheet(false);
         });
+    } else if (googleConnectionType !== "webapp") {
+      setConnectedSheetTitle("");
     }
-  }, []);
+  }, [googleConnectionType, sheetsWebAppUrl]);
 
   // Initialize and check Google authentication
   React.useEffect(() => {
@@ -368,6 +401,8 @@ export default function StaffPortal({
         localStorage.setItem("@luchtvaart_oranjestad_sheets_webapp_url", trimmedUrl);
         localStorage.setItem("@luchtvaart_oranjestad_sheets_conn_type", "webapp");
         setGoogleConnectionType("webapp");
+        if (onUpdateSheetsWebAppUrl) onUpdateSheetsWebAppUrl(trimmedUrl);
+        if (onUpdateGoogleConnectionType) onUpdateGoogleConnectionType("webapp");
         setSheetSuccess(`Succesvol gekoppeld aan de Google Sheet via Apps Script: "${data.title || "Rekenblad"}"!`);
       } else {
         throw new Error(data.error || "Onbekende fout van Google Apps Script.");
@@ -1949,6 +1984,7 @@ export default function StaffPortal({
                       setConnectedSheetTitle("");
                       setSheetError(null);
                       setSheetSuccess(null);
+                      if (onUpdateGoogleConnectionType) onUpdateGoogleConnectionType("webapp");
                     }}
                     className={`flex-1 py-2 px-4 rounded-xl text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
                       googleConnectionType === "webapp"
@@ -1966,6 +2002,7 @@ export default function StaffPortal({
                       setConnectedSheetTitle("");
                       setSheetError(null);
                       setSheetSuccess(null);
+                      if (onUpdateGoogleConnectionType) onUpdateGoogleConnectionType("auth");
                     }}
                     className={`flex-1 py-2 px-4 rounded-xl text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
                       googleConnectionType === "auth"
@@ -2005,6 +2042,7 @@ export default function StaffPortal({
                           onChange={(e) => {
                             setSheetsWebAppUrl(e.target.value);
                             localStorage.setItem("@luchtvaart_oranjestad_sheets_webapp_url", e.target.value);
+                            if (onUpdateSheetsWebAppUrl) onUpdateSheetsWebAppUrl(e.target.value);
                           }}
                           className="w-full bg-slate-1000 border border-slate-850 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
                         />
@@ -2281,7 +2319,12 @@ export default function StaffPortal({
                           type="text"
                           placeholder="Plak URL of ID (bijv: https://docs.google.com/spreadsheets/d/...)"
                           value={sheetIdInput}
-                          onChange={(e) => setSheetIdInput(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSheetIdInput(val);
+                            saveSpreadsheetId(val);
+                            if (onUpdateSavedSpreadsheetId) onUpdateSavedSpreadsheetId(val);
+                          }}
                           className="w-full bg-slate-1000 border border-slate-850 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
                         />
                       </div>

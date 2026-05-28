@@ -48,6 +48,43 @@ export default function App() {
     return localStorage.getItem("@luchtvaart_oranjestad_announcement") || "";
   });
 
+  const [googleConnectionType, setGoogleConnectionType] = React.useState<"auth" | "webapp">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("@luchtvaart_oranjestad_sheets_conn_type") as "auth" | "webapp") || "webapp";
+    }
+    return "webapp";
+  });
+  const [sheetsWebAppUrl, setSheetsWebAppUrl] = React.useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("@luchtvaart_oranjestad_sheets_webapp_url") || "";
+    }
+    return "";
+  });
+  const [savedSpreadsheetId, setSavedSpreadsheetId] = React.useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("@luchtvaart_oranjestad_spreadsheet_id") || "";
+    }
+    return "";
+  });
+
+  const handleUpdateGoogleConnectionType = (type: "auth" | "webapp") => {
+    setGoogleConnectionType(type);
+    localStorage.setItem("@luchtvaart_oranjestad_sheets_conn_type", type);
+    saveSharedPortalData({ googleConnectionType: type });
+  };
+
+  const handleUpdateSheetsWebAppUrl = (url: string) => {
+    setSheetsWebAppUrl(url);
+    localStorage.setItem("@luchtvaart_oranjestad_sheets_webapp_url", url);
+    saveSharedPortalData({ sheetsWebAppUrl: url });
+  };
+
+  const handleUpdateSavedSpreadsheetId = (id: string) => {
+    setSavedSpreadsheetId(id);
+    localStorage.setItem("@luchtvaart_oranjestad_spreadsheet_id", id);
+    saveSharedPortalData({ savedSpreadsheetId: id });
+  };
+
   const handleUpdateAnnouncement = (text: string) => {
     setAnnouncement(text);
     localStorage.setItem("@luchtvaart_oranjestad_announcement", text);
@@ -102,26 +139,74 @@ export default function App() {
 
   // Shared portal data loader and real-time poller (everyone sees the same data)
   React.useEffect(() => {
+    let isMounted = true;
+    let initialLoad = true;
+
     const fetchSharedData = async () => {
       try {
         const response = await fetch("/api/portal-data");
-        if (response.ok) {
+        if (response.ok && isMounted) {
           const data = await response.json();
+
+          // Fallback and self-healing: if the server is freshly started (length === 0)
+          // but the client has actual records in localstorage, upload them to heal/restore the database.
+          if (initialLoad) {
+            initialLoad = false;
+            
+            const localLicsStr = localStorage.getItem(LICENSES_KEY);
+            let localLics: IssuedLicense[] = [];
+            if (localLicsStr) {
+              try {
+                localLics = JSON.parse(localLicsStr);
+              } catch (e) {
+                console.error("Error parsing local licenses:", e);
+              }
+            }
+
+            const serverLics = data.issuedLicenses || [];
+            if (serverLics.length === 0 && localLics.length > 0) {
+              console.log("Restoring empty server with non-empty local storage data, healing system...", localLics);
+              saveSharedPortalData({
+                issuedLicenses: localLics,
+                inventory: data.inventory && data.inventory.length > 0 ? undefined : (JSON.parse(localStorage.getItem(INVENTORY_KEY) || "[]")),
+                aircraftList: data.aircraftList && data.aircraftList.length > 0 ? undefined : (JSON.parse(localStorage.getItem(AIRCRAFT_LIST_KEY) || "[]")),
+                announcement: data.announcement || localStorage.getItem("@luchtvaart_oranjestad_announcement") || "",
+                googleConnectionType: data.googleConnectionType || localStorage.getItem("@luchtvaart_oranjestad_sheets_conn_type") || "webapp",
+                sheetsWebAppUrl: data.sheetsWebAppUrl || localStorage.getItem("@luchtvaart_oranjestad_sheets_webapp_url") || "",
+                savedSpreadsheetId: data.savedSpreadsheetId || localStorage.getItem("@luchtvaart_oranjestad_spreadsheet_id") || ""
+              });
+              setIssuedLicenses(localLics);
+              return; // wait for subsequent intervals to catch up
+            }
+          }
+
           if (data.issuedLicenses !== undefined) {
             setIssuedLicenses(data.issuedLicenses);
             localStorage.setItem(LICENSES_KEY, JSON.stringify(data.issuedLicenses));
           }
-          if (data.inventory !== undefined) {
+          if (data.inventory !== undefined && data.inventory.length > 0) {
             setInventory(data.inventory);
             localStorage.setItem(INVENTORY_KEY, JSON.stringify(data.inventory));
           }
-          if (data.aircraftList !== undefined) {
+          if (data.aircraftList !== undefined && data.aircraftList.length > 0) {
             setAircraftList(data.aircraftList);
             localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(data.aircraftList));
           }
           if (data.announcement !== undefined) {
             setAnnouncement(data.announcement);
             localStorage.setItem("@luchtvaart_oranjestad_announcement", data.announcement);
+          }
+          if (data.googleConnectionType !== undefined) {
+            setGoogleConnectionType(data.googleConnectionType);
+            localStorage.setItem("@luchtvaart_oranjestad_sheets_conn_type", data.googleConnectionType);
+          }
+          if (data.sheetsWebAppUrl !== undefined) {
+            setSheetsWebAppUrl(data.sheetsWebAppUrl);
+            localStorage.setItem("@luchtvaart_oranjestad_sheets_webapp_url", data.sheetsWebAppUrl);
+          }
+          if (data.savedSpreadsheetId !== undefined) {
+            setSavedSpreadsheetId(data.savedSpreadsheetId);
+            localStorage.setItem("@luchtvaart_oranjestad_spreadsheet_id", data.savedSpreadsheetId);
           }
         }
       } catch (error) {
@@ -133,7 +218,10 @@ export default function App() {
 
     // Poll values from the server every 5 seconds so they sync in real-time for all active clients
     const interval = setInterval(fetchSharedData, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // Helper to save shared data server-side
@@ -142,6 +230,9 @@ export default function App() {
     inventory?: AircraftInventory[];
     aircraftList?: Aircraft[];
     announcement?: string;
+    googleConnectionType?: "auth" | "webapp";
+    sheetsWebAppUrl?: string;
+    savedSpreadsheetId?: string;
   }) => {
     try {
       await fetch("/api/portal-data", {
@@ -432,6 +523,12 @@ export default function App() {
             onUpdateAnnouncement={handleUpdateAnnouncement}
             licenseVisibility={licenseVisibility}
             onUpdateLicenseVisibility={handleUpdateLicenseVisibility}
+            propGoogleConnectionType={googleConnectionType}
+            onUpdateGoogleConnectionType={handleUpdateGoogleConnectionType}
+            propSheetsWebAppUrl={sheetsWebAppUrl}
+            onUpdateSheetsWebAppUrl={handleUpdateSheetsWebAppUrl}
+            propSavedSpreadsheetId={savedSpreadsheetId}
+            onUpdateSavedSpreadsheetId={handleUpdateSavedSpreadsheetId}
           />
         )}
       </main>

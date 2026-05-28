@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "PortalData": {
+      "title": "PortalData",
+      "description": "Shared operational portal states, announcement, licensing and Google connections",
+      "type": "object",
+      "properties": {
+        "issuedLicenses": {
+          "type": "array",
+          "description": "Completed flight training licenses"
+        },
+        "inventory": {
+          "type": "array",
+          "description": "Active aircraft flight school components"
+        },
+        "aircraftList": {
+          "type": "array",
+          "description": "The current pilot aircraft training catalog"
+        },
+        "announcement": {
+          "type": "string",
+          "description": "The global live notification banner text"
+        },
+        "googleConnectionType": {
+          "type": "string",
+          "enum": ["webapp", "auth"],
+          "description": "The active spreadsheet transmission pathway"
+        },
+        "sheetsWebAppUrl": {
+          "type": "string",
+          "description": "Proxy macro URL for sandboxed Apps Script writes"
+        },
+        "savedSpreadsheetId": {
+          "type": "string",
+          "description": "The target Sheets identifier"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/portal/data": {
+      "schema": "PortalData",
+      "description": "The single document housing the global state configuration for the school database"
+    }
+  }
+}

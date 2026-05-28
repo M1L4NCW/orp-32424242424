@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Zero-Trust Fortress Safety Net: Blocks all client-side direct calls.
+    // All reads and writes to portal-data are intermediated safely on the backend server.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

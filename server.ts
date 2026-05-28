@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import fs from "fs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { initializeApp as initFirebaseApp } from "firebase/app";
+import { getFirestore as getFirebaseFirestore, doc as firestoreDoc, getDoc as getFirestoreDoc, setDoc as setFirestoreDoc } from "firebase/firestore";
 
 dotenv.config();
 
@@ -11,6 +13,22 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Initialize Firebase on the server for persistent state across restarts!
+let db: any = null;
+try {
+  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    const fbApp = initFirebaseApp(firebaseConfig);
+    db = getFirebaseFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
+    console.log("Firebase Firestore initialized on the server successfully with database ID:", firebaseConfig.firestoreDatabaseId);
+  } else {
+    console.warn("firebase-applet-config.json does not exist. Using only local fallback file storage.");
+  }
+} catch (error) {
+  console.error("Failed to initialize Firebase on the server:", error);
+}
 
 // Initialize Gemini Client safely
 let ai: GoogleGenAI | null = null;
@@ -380,50 +398,117 @@ Geef je reactie precies in het gevraagde JSON formaat.`;
 
 const PORTAL_DATA_PATH = path.join(process.cwd(), "portal-data.json");
 
-// Helper to read portal data securely
-const readPortalData = () => {
+// Helper to read local cache fallback
+const readLocalFallback = () => {
   try {
     if (fs.existsSync(PORTAL_DATA_PATH)) {
       const data = fs.readFileSync(PORTAL_DATA_PATH, "utf-8");
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return {
+        issuedLicenses: parsed.issuedLicenses || [],
+        inventory: parsed.inventory || [],
+        aircraftList: parsed.aircraftList || [],
+        announcement: parsed.announcement || "",
+        googleConnectionType: parsed.googleConnectionType || "webapp",
+        sheetsWebAppUrl: parsed.sheetsWebAppUrl || "",
+        savedSpreadsheetId: parsed.savedSpreadsheetId || ""
+      };
     }
   } catch (error) {
-    console.error("Error reading portal-data.json:", error);
+    console.error("Error reading portal-data-local fallback:", error);
   }
   return {
     issuedLicenses: [],
     inventory: [],
     aircraftList: [],
-    announcement: ""
+    announcement: "",
+    googleConnectionType: "webapp",
+    sheetsWebAppUrl: "",
+    savedSpreadsheetId: ""
   };
 };
 
-// Helper to write portal data securely
-const writePortalData = (data: any) => {
+// Helper to write local cache fallback
+const writeLocalFallback = (data: any) => {
   try {
     fs.writeFileSync(PORTAL_DATA_PATH, JSON.stringify(data, null, 2), "utf-8");
   } catch (error) {
-    console.error("Error writing portal-data.json:", error);
+    console.error("Error writing portal-local fallback:", error);
   }
 };
 
-app.get("/api/portal-data", (req, res) => {
-  const data = readPortalData();
+// Helper to read portal data from Firestore with local fallback
+const readPortalDataAsync = async () => {
+  if (db) {
+    try {
+      const docRef = firestoreDoc(db, "portal", "data");
+      const docSnap = await getFirestoreDoc(docRef);
+      if (docSnap.exists()) {
+        const parsed = docSnap.data();
+        const structured = {
+          issuedLicenses: parsed.issuedLicenses || [],
+          inventory: parsed.inventory || [],
+          aircraftList: parsed.aircraftList || [],
+          announcement: parsed.announcement || "",
+          googleConnectionType: parsed.googleConnectionType || "webapp",
+          sheetsWebAppUrl: parsed.sheetsWebAppUrl || "",
+          savedSpreadsheetId: parsed.savedSpreadsheetId || ""
+        };
+        // Always mirror on disk for robustness
+        writeLocalFallback(structured);
+        return structured;
+      }
+    } catch (error) {
+      console.error("Failed to read portal data from Firestore, falling back to local file:", error);
+    }
+  }
+  return readLocalFallback();
+};
+
+// Helper to write portal data with Firestore and local fallback
+const writePortalDataAsync = async (data: any) => {
+  // 1. Save local first for instant responsive fallback
+  writeLocalFallback(data);
+
+  // 2. Save in Firestore for reliable long-term persistence across restarts
+  if (db) {
+    try {
+      const docRef = firestoreDoc(db, "portal", "data");
+      await setFirestoreDoc(docRef, data);
+    } catch (error) {
+      console.error("Failed to write portal data to Firestore:", error);
+    }
+  }
+};
+
+app.get("/api/portal-data", async (req, res) => {
+  const data = await readPortalDataAsync();
   res.json(data);
 });
 
-app.post("/api/portal-data", (req, res) => {
-  const existing = readPortalData();
-  const { issuedLicenses, inventory, aircraftList, announcement } = req.body;
+app.post("/api/portal-data", async (req, res) => {
+  const existing = await readPortalDataAsync();
+  const { 
+    issuedLicenses, 
+    inventory, 
+    aircraftList, 
+    announcement,
+    googleConnectionType,
+    sheetsWebAppUrl,
+    savedSpreadsheetId
+  } = req.body;
 
   const updated = {
     issuedLicenses: issuedLicenses !== undefined ? issuedLicenses : existing.issuedLicenses,
     inventory: inventory !== undefined ? inventory : existing.inventory,
     aircraftList: aircraftList !== undefined ? aircraftList : existing.aircraftList,
     announcement: announcement !== undefined ? announcement : existing.announcement,
+    googleConnectionType: googleConnectionType !== undefined ? googleConnectionType : existing.googleConnectionType,
+    sheetsWebAppUrl: sheetsWebAppUrl !== undefined ? sheetsWebAppUrl : existing.sheetsWebAppUrl,
+    savedSpreadsheetId: savedSpreadsheetId !== undefined ? savedSpreadsheetId : existing.savedSpreadsheetId,
   };
 
-  writePortalData(updated);
+  await writePortalDataAsync(updated);
   res.json({ success: true });
 });
 
