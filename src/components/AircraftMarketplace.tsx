@@ -1,22 +1,20 @@
 import React from "react";
-import { SlidersHorizontal, Check, Compass, ShoppingBag, Sparkles, CheckCircle2, ArrowLeft, Users, Zap, Eye } from "lucide-react";
+import { SlidersHorizontal, Check, Compass, ShoppingBag, ArrowLeft, Eye } from "lucide-react";
 import { AIRCRAFT_LIST } from "../data";
 import { Aircraft, PilotLogbook, AircraftInventory } from "../types";
 
 interface AircraftMarketplaceProps {
   logbook: PilotLogbook;
-  onOrderAircraft: (aircraft: any) => void;
   inventory: AircraftInventory[];
   aircraftList: Aircraft[];
 }
 
-export default function AircraftMarketplace({ logbook, onOrderAircraft, inventory, aircraftList }: AircraftMarketplaceProps) {
+export default function AircraftMarketplace({ logbook, inventory, aircraftList }: AircraftMarketplaceProps) {
   const [activeView, setActiveView] = React.useState<"grid" | "detail">("grid");
   const [selectedAircraftState, setSelectedAircraftState] = React.useState<Aircraft | null>(null);
   
   // Custom paint options
   const [selectedColor, setSelectedColor] = React.useState({ name: "Arctic Silver", hex: "#e2e8f0" });
-  const [orderCompletePopup, setOrderCompletePopup] = React.useState<any | null>(null);
 
   const colors = [
     { name: "Arctic Silver", hex: "#e2e8f0" },
@@ -76,29 +74,6 @@ export default function AircraftMarketplace({ logbook, onOrderAircraft, inventor
   };
 
   const currentBasePrice = specInventory.priceOverride || currentSelected.basePrice;
-
-  // Surcharges: Custom paint choice costs 15000: "Kleur aanpassen kost 15k"
-  const colorSurcharge = selectedColor.name !== "Arctic Silver" ? 15000 : 0;
-  const totalPrice = currentBasePrice + colorSurcharge;
-
-  const handleOrderSubmit = () => {
-    if (specInventory.stockCount <= 0) {
-      console.warn("Fout: Dit model is momenteel uitverkocht in de hangar.");
-      return;
-    }
-
-    const orderData = {
-      id: "ord-" + Date.now(),
-      name: currentSelected.name,
-      configuredColor: selectedColor.name,
-      configuredAvionics: "Standaard Fabrieksuitvoering",
-      totalPrice: totalPrice,
-      orderDate: new Date().toLocaleDateString("nl-NL")
-    };
-
-    onOrderAircraft(orderData);
-    setOrderCompletePopup(orderData);
-  };
 
   return (
     <div className="bg-slate-900 text-white py-12">
@@ -300,17 +275,17 @@ export default function AircraftMarketplace({ logbook, onOrderAircraft, inventor
               {/* RIGHT: Customizer specs, color select, price calc (5 cols) */}
               <div className="lg:col-span-5 bg-slate-950 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="font-display font-semibold text-base text-white flex items-center gap-1.5 uppercase font-mono tracking-wider mb-5">
+                  <h3 className="font-display font-semibold text-base text-white flex items-center gap-1.5 uppercase font-[#ea580c] font-mono tracking-wider mb-5">
                     <SlidersHorizontal className="h-4.5 w-4.5 text-[#ea580c]" />
-                    <span>Opties & Hangar Prijs</span>
+                    <span>Toestel Opties</span>
                   </h3>
 
-                  {/* Paint selection: Arctic Silver is standard, custom is +15k */}
+                  {/* Paint selection */}
                   <div className="space-y-4">
                     <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-850/60">
-                      <label className="text-[10px] text-slate-400 font-mono uppercase tracking-widest block mb-1 font-bold">Kleur Kiezer</label>
+                      <label className="text-[10px] text-slate-400 font-mono uppercase tracking-widest block mb-1 font-bold">Kleur Visualisatie</label>
                       <p className="text-[9px] text-slate-500 font-mono mb-4 leading-relaxed">
-                        Arctic Silver is gratis. Een andere premium lakkleur kost eenmalig €15.000 om op maat te verven.
+                        Kies een lak om het model te visualiseren in de showroom.
                       </p>
                       
                       <div className="flex flex-wrap gap-2.5">
@@ -324,7 +299,7 @@ export default function AircraftMarketplace({ logbook, onOrderAircraft, inventor
                                 isSelected ? "border-[#ea580c] scale-110 shadow-lg shadow-[#ea580c]/15" : "border-slate-800 hover:border-slate-600"
                               }`}
                               style={{ backgroundColor: c.hex }}
-                              title={`${c.name} ${c.name === "Arctic Silver" ? "(Standaard)" : "(+ €15.000)"}`}
+                              title={c.name}
                             >
                               {isSelected && (
                                 <Check className="h-4 w-4 absolute top-2 text-slate-900 font-extrabold" />
@@ -335,126 +310,34 @@ export default function AircraftMarketplace({ logbook, onOrderAircraft, inventor
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-slate-850 text-[11px] font-mono text-slate-400 flex justify-between">
-                        <span>Gekozen lak:</span>
-                        <span className="text-white font-bold">{selectedColor.name} {selectedColor.name !== "Arctic Silver" && "(+ €15.000)"}</span>
+                        <span>Geselecteerde kleur:</span>
+                        <span className="text-white font-bold">{selectedColor.name}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Recalculate price and checkout */}
+                {/* Pricing summary */}
                 <div className="border-t border-slate-900 pt-5 space-y-4">
                   <div className="bg-slate-900 p-4 rounded-xl border border-slate-850 font-mono text-xs text-slate-400 space-y-2">
                     <div className="flex justify-between">
-                      <span>Showroom Levering:</span>
-                      <span className={`font-bold ${specInventory.stockCount > 0 ? "text-emerald-400" : "text-rose-400 animate-pulse"}`}>
-                        {specInventory.stockCount > 0 ? `${specInventory.stockCount} stuks op voorraad` : "TIJDELIJK UITVERKOCHTE VOORRAAD"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Winkel Prijs Model:</span>
-                      <span className="text-white">€{currentBasePrice.toLocaleString("nl-NL")}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Kleur spuiten:</span>
-                      <span className={colorSurcharge > 0 ? "text-amber-400 font-bold" : "text-slate-500"}>
-                        {colorSurcharge > 0 ? `+ €${colorSurcharge.toLocaleString("nl-NL")}` : "Inbegrepen"}
+                      <span>Status:</span>
+                      <span className={`font-bold ${specInventory.stockCount > 0 ? "text-emerald-400" : "text-rose-450"}`}>
+                        {specInventory.stockCount > 0 ? `Beschikbaar in hangar (${specInventory.stockCount} stuks)` : "Tijdelijk niet op voorraad"}
                       </span>
                     </div>
 
                     <div className="flex justify-between border-t border-slate-800 pt-3 text-sm font-bold text-white">
-                      <span>Totaalprijs:</span>
-                      <span className="text-[#ea580c] text-base font-black">€{totalPrice.toLocaleString("nl-NL")}</span>
+                      <span>Showroom Prijs:</span>
+                      <span className="text-[#ea580c] text-base font-black">€{currentBasePrice.toLocaleString("nl-NL")}</span>
                     </div>
                   </div>
-
-                  {specInventory.stockCount > 0 ? (
-                    <button
-                      onClick={handleOrderSubmit}
-                      className="w-full bg-[#ea580c] hover:bg-[#ea580c]/90 text-slate-950 font-bold font-mono text-xs sm:text-sm py-4 rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-[#ea580c]/15 cursor-pointer"
-                    >
-                      <ShoppingBag className="h-4.5 w-4.5" />
-                      <span>Bestelling Plaatsen</span>
-                    </button>
-                  ) : (
-                    <div className="w-full bg-slate-950 border border-slate-850/60 text-slate-500 font-mono text-center text-xs py-4 rounded-xl uppercase tracking-wider font-semibold">
-                      Tijdelijk niet leverbaar in hangar
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Dynamic Registered Fleet/Garage if they own any aircraft */}
-        {logbook.ownedAircraft && logbook.ownedAircraft.length > 0 && (
-          <div className="mt-16 bg-slate-950 border border-slate-800 p-6 sm:p-8 rounded-3xl">
-            <h3 className="font-display font-semibold text-xl text-white flex items-center gap-2 mb-4">
-              <Sparkles className="h-5 w-5 text-[#ea580c]" />
-              <span>Gekochte Toestellen & Gestaalde Vloot</span>
-            </h3>
-            <p className="text-xs text-slate-400 mb-6 font-light">Geregistreerde privé-vliegtuigen en helikopters in uw bezit:</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {logbook.ownedAircraft.map((own) => (
-                <div key={own.id} className="bg-slate-900 border border-slate-850 p-4.5 rounded-2xl flex flex-col justify-between font-mono text-xs">
-                  <div>
-                    <div className="flex justify-between text-slate-500 text-[10px]">
-                      <span>ID: {own.id.substring(4, 10).toUpperCase()}</span>
-                      <span>{own.orderDate}</span>
-                    </div>
-                    <h4 className="font-display font-bold text-sm text-white mt-1.5">{own.name}</h4>
-                    <p className="text-[10px] text-slate-400 font-light mt-1 leading-relaxed">
-                      Lakkleur: <strong className="text-slate-200">{own.configuredColor}</strong><br />
-                      Uitvoering: <strong className="text-slate-200">{own.configuredAvionics ? "Standaard Fabrieksuitvoering" : "Standaard"}</strong>
-                    </p>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-slate-850 flex justify-between items-center">
-                    <span className="text-slate-500">Aankoopwaarde:</span>
-                    <strong className="text-[#ea580c] font-bold">€{own.totalPrice.toLocaleString("nl-NL")}</strong>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         )}
       </div>
-
-      {/* Success order popover modal overlay */}
-      {orderCompletePopup && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 max-w-sm w-full rounded-3xl p-6 text-center shadow-2xl relative font-sans">
-            <div className="inline-flex p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 mb-4 animate-bounce">
-              <CheckCircle2 className="h-10 w-10 animate-pulse" />
-            </div>
-            
-            <h3 className="font-display font-bold text-xl text-white">Toestel Gereserveerd!</h3>
-            <p className="text-slate-400 text-xs mt-2 leading-relaxed">
-              Uw bestelling voor de <strong className="text-white">{orderCompletePopup.name}</strong> ({orderCompletePopup.configuredColor}) is succesvol geregistreerd onder uw naam.
-            </p>
-
-            <div className="bg-slate-950 rounded-xl p-4 my-4 font-mono text-[10px] text-left text-slate-400 space-y-1">
-              <div>Model: <strong className="text-slate-200">{orderCompletePopup.name}</strong></div>
-              <div>Exterieur: <strong className="text-slate-200">{orderCompletePopup.configuredColor}</strong></div>
-              <div>Aflevering: <strong className="text-slate-200">Koningin Beatrix Luchthaven</strong></div>
-              <div className="border-t border-slate-900 pt-1.5 text-xs text-[#ea580c] font-bold font-mono">
-                Totaalbedrag: €{orderCompletePopup.totalPrice.toLocaleString("nl-NL")}
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                setOrderCompletePopup(null);
-                setActiveView("grid");
-              }}
-              className="w-full bg-[#ea580c] text-slate-950 font-bold font-mono text-xs py-2.5 rounded-lg transition-all cursor-pointer hover:bg-[#ea580c]/90"
-            >
-              Terug naar Showroom
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

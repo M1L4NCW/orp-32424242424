@@ -501,7 +501,6 @@ export default function App() {
         {currentTab === "marketplace" && (
           <AircraftMarketplace 
             logbook={logbook}
-            onOrderAircraft={handleOrderAircraft}
             inventory={inventory}
             aircraftList={aircraftList}
           />
