@@ -13,8 +13,6 @@ export default function Navigation({ currentTab, setCurrentTab }: NavigationProp
   // standard icons for navigation buttons
   const buttonItems = [
     { id: "home", label: "Home", icon: Plane },
-    { id: "brevetten", label: "Vliegbrevetten", icon: Award },
-    { id: "marketplace", label: "Catalogus", icon: ShoppingBag },
     { id: "staff", label: "Personeelsportaal", icon: User },
   ];
 

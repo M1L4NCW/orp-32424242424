@@ -4,7 +4,7 @@ import {
   MapPin, CheckCircle2, ShieldAlert, BookOpen, AlertCircle, Plus, Sparkles, Megaphone 
 } from "lucide-react";
 
-import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig } from "./types";
+import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig, StaffUser } from "./types";
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer";
 import BrevettenHub from "./components/BrevettenHub";
@@ -31,7 +31,7 @@ const DEFAULT_LOGBOOK: PilotLogbook = {
 };
 
 export default function App() {
-  const [currentTab, setCurrentTab] = React.useState<string>("home");
+  const [currentTab, setCurrentTab] = React.useState<string>("staff");
   const [logbook, setLogbook] = React.useState<PilotLogbook>(DEFAULT_LOGBOOK);
   const [enrolledCourses, setEnrolledCourses] = React.useState<string[]>([]);
   
@@ -39,6 +39,7 @@ export default function App() {
   const [issuedLicenses, setIssuedLicenses] = React.useState<IssuedLicense[]>([]);
   const [inventory, setInventory] = React.useState<AircraftInventory[]>([]);
   const [aircraftList, setAircraftList] = React.useState<Aircraft[]>([]);
+  const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>([]);
 
   // Success notifications
   const [transactionSuccess, setTransactionSuccess] = React.useState<string | null>(null);
@@ -233,6 +234,9 @@ export default function App() {
             setAircraftList(data.aircraftList);
             localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(data.aircraftList));
           }
+          if (data.staffAccounts !== undefined) {
+            setStaffAccounts(data.staffAccounts);
+          }
           if (data.announcement !== undefined) {
             setAnnouncement(data.announcement);
             localStorage.setItem("@luchtvaart_oranjestad_announcement", data.announcement);
@@ -279,6 +283,7 @@ export default function App() {
     sheetsWebAppUrl?: string;
     savedSpreadsheetId?: string;
     financialConfig?: FinancialConfig;
+    staffAccounts?: StaffUser[];
   }) => {
     try {
       await fetch("/api/portal-data", {
@@ -289,6 +294,11 @@ export default function App() {
     } catch (e) {
       console.error("Fout met opslaan van gedeelde portaalgegevens op server:", e);
     }
+  };
+
+  const handleUpdateStaffAccounts = (updatedAccounts: StaffUser[]) => {
+    setStaffAccounts(updatedAccounts);
+    saveSharedPortalData({ staffAccounts: updatedAccounts });
   };
 
   // Save logbook state Changes
@@ -576,6 +586,8 @@ export default function App() {
             onUpdateSavedSpreadsheetId={handleUpdateSavedSpreadsheetId}
             financialConfig={financialConfig}
             onUpdateFinancialConfig={handleUpdateFinancialConfig}
+            staffAccounts={staffAccounts}
+            onUpdateStaffAccounts={handleUpdateStaffAccounts}
           />
         )}
       </main>

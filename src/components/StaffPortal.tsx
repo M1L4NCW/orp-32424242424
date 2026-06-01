@@ -42,6 +42,8 @@ interface StaffPortalProps {
   onUpdateSavedSpreadsheetId?: (id: string) => void;
   financialConfig?: FinancialConfig;
   onUpdateFinancialConfig?: (config: FinancialConfig) => void;
+  staffAccounts: StaffUser[];
+  onUpdateStaffAccounts: (accounts: StaffUser[]) => void;
 }
 
 // Default staff accounts
@@ -186,31 +188,30 @@ export default function StaffPortal({
   propSavedSpreadsheetId,
   onUpdateSavedSpreadsheetId,
   financialConfig,
-  onUpdateFinancialConfig
+  onUpdateFinancialConfig,
+  staffAccounts = [],
+  onUpdateStaffAccounts
 }: StaffPortalProps) {
   
-  // Accounts management
-  const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>(() => {
-    try {
-      const stored = localStorage.getItem(STAFF_ACCOUNTS_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          // Clean up old default test users to prepare for live operation
-          return parsed.filter(u => {
-            if (u.username === "owner" && u.passwordHash === "oranjestad_owner") return false;
-            if (u.username === "manager" && u.passwordHash === "oranjestad123") return false;
-            if (u.username === "medewerker" && u.passwordHash === "vliegen456") return false;
-            if (u.username === "MikeL" || u.fullname === "Mike Lapose") return false;
-            return true;
-          });
-        }
+  // Selection/Input states for Instructor selection via Discord ID
+  const [selectedInstructorId, setSelectedInstructorId] = React.useState<string>("");
+  const [useCustomInstructor, setUseCustomInstructor] = React.useState<boolean>(false);
+  const [customInstructorName, setCustomInstructorName] = React.useState<string>("");
+  const [customInstructorDiscordId, setCustomInstructorDiscordId] = React.useState<string>("");
+
+  // Discord ID for manual employees creation
+  const [newDiscordId, setNewDiscordId] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (staffAccounts.length > 0 && !selectedInstructorId) {
+      const kevin = staffAccounts.find(u => u.username === "kevin_lco");
+      if (kevin) {
+        setSelectedInstructorId(kevin.id);
+      } else {
+        setSelectedInstructorId(staffAccounts[0].id);
       }
-    } catch (e) {
-      console.error("Failed to load staff accounts synchronously:", e);
     }
-    return [];
-  });
+  }, [staffAccounts, selectedInstructorId]);
 
   // Financial dynamic variables for customization
   const [helicopterPrice, setHelicopterPrice] = React.useState(financialConfig?.helicopterPrice ?? 250000);
@@ -735,32 +736,39 @@ export default function StaffPortal({
     onUpdateInventory(cleanedInv);
   };
 
-  // Load and sync accounts from local storage
+  // Seed default staff accounts on server/state if completely empty
   React.useEffect(() => {
-    const stored = localStorage.getItem(STAFF_ACCOUNTS_KEY);
-    let accounts: StaffUser[] = [];
-    if (stored) {
-      try {
-        accounts = JSON.parse(stored);
-      } catch (e) {
-        accounts = [...DEFAULT_STAFF_ACCOUNTS];
-      }
-    } else {
-      accounts = [...DEFAULT_STAFF_ACCOUNTS];
+    if (staffAccounts.length === 0 && onUpdateStaffAccounts) {
+      const initialUsers: StaffUser[] = [
+        {
+          id: "staff-owner",
+          username: "directie",
+          passwordHash: "oranjestad_directie",
+          role: "owner",
+          fullname: "Hoofddirectie Oranjestad",
+          discordId: "304859039201928301"
+        },
+        {
+          id: "staff-1",
+          username: "kevin_lco",
+          passwordHash: "oranjestad123",
+          role: "manager",
+          fullname: "Kevin Martens (Instructeur)",
+          discordId: "948203910293049281"
+        },
+        {
+          id: "staff-2",
+          username: "john_doe",
+          passwordHash: "oranjestad123",
+          role: "medewerker",
+          fullname: "John Doe (Instructeur)",
+          discordId: "847293049203910293"
+        }
+      ];
+      onUpdateStaffAccounts(initialUsers);
+      localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(initialUsers));
     }
-
-    // Clean up old default test users to prepare for live operation
-    accounts = accounts.filter(u => {
-      if (u.username === "owner" && u.passwordHash === "oranjestad_owner") return false;
-      if (u.username === "manager" && u.passwordHash === "oranjestad123") return false;
-      if (u.username === "medewerker" && u.passwordHash === "vliegen456") return false;
-      if (u.username === "MikeL" || u.fullname === "Mike Lapose") return false;
-      return true;
-    });
-
-    setStaffAccounts(accounts);
-    localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(accounts));
-  }, []);
+  }, [staffAccounts, onUpdateStaffAccounts]);
 
   // Check only for fresh Discord auth code in URL on mount and clear persistent session
   React.useEffect(() => {
@@ -815,15 +823,14 @@ export default function StaffPortal({
 
         setLoggedInUser(discordUser);
         
-        setStaffAccounts(prev => {
-          const exists = prev.some(u => u.id === discordUser.id);
-          if (!exists) {
-            const next = [...prev, discordUser];
-            localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(next));
-            return next;
+        const exists = staffAccounts.some(u => u.id === discordUser.id);
+        if (!exists) {
+          const next = [...staffAccounts, discordUser];
+          localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(next));
+          if (onUpdateStaffAccounts) {
+            onUpdateStaffAccounts(next);
           }
-          return prev;
-        });
+        }
 
         if (data.user.role === "owner" || data.user.role === "manager") {
           setActiveTab("administration");
@@ -894,8 +901,10 @@ export default function StaffPortal({
   }, [taxDueDate]);
 
   const saveAccounts = (newAccounts: StaffUser[]) => {
-    setStaffAccounts(newAccounts);
     localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(newAccounts));
+    if (onUpdateStaffAccounts) {
+      onUpdateStaffAccounts(newAccounts);
+    }
   };
 
   const handleCredentialsSubmit = (e: React.FormEvent) => {
@@ -965,12 +974,34 @@ export default function StaffPortal({
       finalCitId = "BSN-" + finalCitId.replace(/^BSN-?/i, "");
     }
 
+    let finalInstructorName = "Instructeur Oranjestad";
+    let finalInstructorDiscordId = "";
+
+    if (useCustomInstructor) {
+      finalInstructorName = customInstructorName.trim() || "Aangepaste Instructeur";
+      finalInstructorDiscordId = customInstructorDiscordId.trim();
+    } else {
+      const selectedStaff = staffAccounts.find(s => s.id === selectedInstructorId);
+      if (selectedStaff) {
+        finalInstructorName = selectedStaff.fullname;
+        finalInstructorDiscordId = selectedStaff.discordId || "";
+      } else {
+        finalInstructorName = issuedByTeacher || fullname || "Instructeur Oranjestad";
+        // Fallback to active logged-in user details if naming matches
+        const matchedActive = staffAccounts.find(u => u.fullname === finalInstructorName);
+        if (matchedActive) {
+          finalInstructorDiscordId = matchedActive.discordId || "";
+        }
+      }
+    }
+
     const newLic: IssuedLicense = {
       id: "lic-" + Math.floor(1000 + Math.random() * 9000),
       citizenName: newCitName.trim(),
       citizenId: finalCitId,
       licenseType: newLicType,
-      issuedBy: issuedByTeacher || fullname || "Instructeur Oranjestad",
+      issuedBy: finalInstructorName,
+      issuedByDiscordId: finalInstructorDiscordId || undefined,
       issueDate: new Date().toLocaleDateString("nl-NL"),
       remarks: newRemarks.trim() || undefined,
       employeeCommissionPaid: false,
@@ -1064,7 +1095,8 @@ export default function StaffPortal({
       username: cleanUser,
       passwordHash: cleanPass,
       role: newUserRole,
-      fullname: cleanName
+      fullname: cleanName,
+      discordId: newDiscordId.trim() || undefined
     };
 
     const nextAccounts = [...staffAccounts, newUser];
@@ -1074,6 +1106,7 @@ export default function StaffPortal({
     setNewUsername("");
     setNewPassword("");
     setNewFullname("");
+    setNewDiscordId("");
 
     setTimeout(() => {
       setUserCreatedMessage(null);
@@ -1435,8 +1468,8 @@ export default function StaffPortal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                <div className="space-y-4">
+                  <div className="space-y-1.5 text-left">
                     <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Soort Diploma</label>
                     <select
                       value={newLicType}
@@ -1449,19 +1482,99 @@ export default function StaffPortal({
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block">Uitschrijvende Medewerker</label>
-                    <select
-                      value={issuedByTeacher}
-                      onChange={(e) => setIssuedByTeacher(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-xs text-slate-350 font-sans font-bold"
-                    >
-                      {staffAccounts.map((acc) => (
-                        <option key={acc.id} value={acc.fullname}>
-                          {acc.fullname} ({acc.role})
-                        </option>
-                      ))}
-                    </select>
+                  <div className="space-y-3 text-left">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold text-[#ea580c]">
+                      👨‍✈️ Vink de Instructeur Aan (voorzien van Discord ID)
+                    </label>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                      {staffAccounts.map((acc) => {
+                        const isSelected = selectedInstructorId === acc.id && !useCustomInstructor;
+                        return (
+                          <div
+                            key={acc.id}
+                            onClick={() => {
+                              setSelectedInstructorId(acc.id);
+                              setUseCustomInstructor(false);
+                            }}
+                            className={`border rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-300 ${
+                              isSelected
+                                ? "bg-[#ea580c]/15 border-[#ea580c] shadow-lg shadow-[#ea580c]/10"
+                                : "bg-slate-900/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-display font-bold text-white text-xs block truncate leading-snug">{acc.fullname}</span>
+                              <input
+                                type="radio"
+                                name="instructor-picker-radio"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedInstructorId(acc.id);
+                                  setUseCustomInstructor(false);
+                                }}
+                                className="h-4.5 w-4.5 accent-[#ea580c] shrink-0 cursor-pointer"
+                              />
+                            </div>
+                            <div className="mt-3 font-mono text-[10px] space-y-1 text-slate-400">
+                              <div className="truncate">Discord ID: <span className={acc.discordId ? "text-cyan-400 font-bold" : "text-amber-500/80 italic font-medium"}>{acc.discordId || "Geen Discord ID"}</span></div>
+                              <div className="capitalize text-[9px] text-slate-500 font-sans">Rol: {acc.role}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Manual / Custom Instructor trigger option card */}
+                      <div
+                        onClick={() => setUseCustomInstructor(true)}
+                        className={`border rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-300 ${
+                          useCustomInstructor
+                            ? "bg-[#ea580c]/15 border-[#ea580c] shadow-lg shadow-[#ea580c]/10"
+                            : "bg-slate-900/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-display font-bold text-white text-xs block leading-snug">Handmatig Invullen</span>
+                          <input
+                            type="radio"
+                            name="instructor-picker-radio"
+                            checked={useCustomInstructor}
+                            onChange={() => setUseCustomInstructor(true)}
+                            className="h-4.5 w-4.5 accent-[#ea580c] shrink-0 cursor-pointer"
+                          />
+                        </div>
+                        <p className="mt-3 text-[10px] text-slate-450 font-sans leading-relaxed">
+                          Ander personeelslid of tijdelijke instructeur wegschrijven.
+                        </p>
+                      </div>
+                    </div>
+
+                    {useCustomInstructor && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 bg-slate-950/45 p-4.5 rounded-2xl border border-slate-800/90 animate-fade-in text-left">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] text-slate-450 uppercase tracking-widest block font-medium">Instructeur Naam</label>
+                          <input
+                            type="text"
+                            required={useCustomInstructor}
+                            value={customInstructorName}
+                            onChange={(e) => setCustomInstructorName(e.target.value)}
+                            placeholder="Bijv: Mike Lapose"
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3.5 outline-none focus:border-[#ea580c] text-xs text-slate-200"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] text-slate-450 uppercase tracking-widest block font-medium">Discord ID (Cijfers)</label>
+                          <input
+                            type="text"
+                            required={useCustomInstructor}
+                            value={customInstructorDiscordId}
+                            onChange={(e) => setCustomInstructorDiscordId(e.target.value)}
+                            placeholder="Bijv: 304859039201928301"
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3.5 outline-none focus:border-[#ea580c] text-xs text-slate-200"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -3118,6 +3231,19 @@ export default function StaffPortal({
 
                 <div>
                   <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-wider mb-1.5">
+                    Discord ID (Optioneel)
+                  </label>
+                  <input
+                    type="text"
+                    value={newDiscordId}
+                    onChange={(e) => setNewDiscordId(e.target.value)}
+                    placeholder="Bijv: 304859039201928301"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-650 focus:border-emerald-500 focus:outline-none transition-all focus:ring-1 focus:ring-emerald-500 font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-wider mb-1.5">
                     Functie / Rol binnen het Portaal
                   </label>
                   <select
@@ -3184,6 +3310,14 @@ export default function StaffPortal({
                             <span className="text-slate-500 italic font-sans text-[10px] select-none">[Enkel zichtbaar voor Eigenaar]</span>
                           )}
                         </div>
+                        {user.discordId && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>Discord ID:</span>
+                            <strong className="text-cyan-400 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-850/60 font-mono font-bold select-all">
+                              {user.discordId}
+                            </strong>
+                          </div>
+                        )}
                       </div>
                       {role === "owner" && (
                         <div className="mt-2 text-[9px] text-[#ea580c] opacity-60 group-hover/credential:opacity-0 transition-opacity duration-300 font-sans font-light">

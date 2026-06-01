@@ -411,7 +411,9 @@ const readLocalFallback = () => {
         announcement: parsed.announcement || "",
         googleConnectionType: parsed.googleConnectionType || "webapp",
         sheetsWebAppUrl: parsed.sheetsWebAppUrl || "",
-        savedSpreadsheetId: parsed.savedSpreadsheetId || ""
+        savedSpreadsheetId: parsed.savedSpreadsheetId || "",
+        financialConfig: parsed.financialConfig || null,
+        staffAccounts: parsed.staffAccounts || []
       };
     }
   } catch (error) {
@@ -425,7 +427,8 @@ const readLocalFallback = () => {
     googleConnectionType: "webapp",
     sheetsWebAppUrl: "",
     savedSpreadsheetId: "",
-    financialConfig: null
+    financialConfig: null,
+    staffAccounts: []
   };
 };
 
@@ -454,7 +457,8 @@ const readPortalDataAsync = async () => {
           googleConnectionType: parsed.googleConnectionType || "webapp",
           sheetsWebAppUrl: parsed.sheetsWebAppUrl || "",
           savedSpreadsheetId: parsed.savedSpreadsheetId || "",
-          financialConfig: parsed.financialConfig || null
+          financialConfig: parsed.financialConfig || null,
+          staffAccounts: parsed.staffAccounts || []
         };
         // Always mirror on disk for robustness
         writeLocalFallback(structured);
@@ -498,7 +502,8 @@ app.post("/api/portal-data", async (req, res) => {
     googleConnectionType,
     sheetsWebAppUrl,
     savedSpreadsheetId,
-    financialConfig
+    financialConfig,
+    staffAccounts
   } = req.body;
 
   const updated = {
@@ -509,7 +514,8 @@ app.post("/api/portal-data", async (req, res) => {
     googleConnectionType: googleConnectionType !== undefined ? googleConnectionType : existing.googleConnectionType,
     sheetsWebAppUrl: sheetsWebAppUrl !== undefined ? sheetsWebAppUrl : existing.sheetsWebAppUrl,
     savedSpreadsheetId: savedSpreadsheetId !== undefined ? savedSpreadsheetId : existing.savedSpreadsheetId,
-    financialConfig: financialConfig !== undefined ? financialConfig : existing.financialConfig
+    financialConfig: financialConfig !== undefined ? financialConfig : existing.financialConfig,
+    staffAccounts: staffAccounts !== undefined ? staffAccounts : existing.staffAccounts
   };
 
   await writePortalDataAsync(updated);

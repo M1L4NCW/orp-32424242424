@@ -43,6 +43,7 @@ export interface StaffUser {
   passwordHash: string; // clear text password for simple storage
   role: "owner" | "manager" | "medewerker";
   fullname: string;
+  discordId?: string; // stored discord ID
 }
 
 export interface TrainingCourse {
@@ -96,6 +97,7 @@ export interface IssuedLicense {
   citizenId: string; // CID / BSN
   licenseType: "helicopter" | "small-plane" | "large-plane";
   issuedBy: string; // Staff member who signed it off
+  issuedByDiscordId?: string; // Discord ID of the instructor who signed it off
   issueDate: string;
   remarks?: string;
   employeeCommissionPaid?: boolean;

@@ -31,16 +31,6 @@ export default function Footer({ setCurrentTab }: { setCurrentTab: (tab: string)
             <h4 className="text-white font-semibold mb-4 text-sm tracking-wider font-display uppercase">Snelkoppelingen</h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <button onClick={() => setCurrentTab("brevetten")} className="hover:text-white transition-colors cursor-pointer text-left">
-                  Vliegbrevetten Hub
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setCurrentTab("marketplace")} className="hover:text-white transition-colors cursor-pointer text-left">
-                  Voorraad & Hangar
-                </button>
-              </li>
-              <li>
                 <button onClick={() => setCurrentTab("staff")} className="hover:text-white transition-colors text-brand-500 hover:text-brand-400 font-semibold cursor-pointer text-left">
                   Personeelsportaal (🔐)
                 </button>
