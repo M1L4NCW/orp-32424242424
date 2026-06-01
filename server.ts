@@ -424,7 +424,8 @@ const readLocalFallback = () => {
     announcement: "",
     googleConnectionType: "webapp",
     sheetsWebAppUrl: "",
-    savedSpreadsheetId: ""
+    savedSpreadsheetId: "",
+    financialConfig: null
   };
 };
 
@@ -452,7 +453,8 @@ const readPortalDataAsync = async () => {
           announcement: parsed.announcement || "",
           googleConnectionType: parsed.googleConnectionType || "webapp",
           sheetsWebAppUrl: parsed.sheetsWebAppUrl || "",
-          savedSpreadsheetId: parsed.savedSpreadsheetId || ""
+          savedSpreadsheetId: parsed.savedSpreadsheetId || "",
+          financialConfig: parsed.financialConfig || null
         };
         // Always mirror on disk for robustness
         writeLocalFallback(structured);
@@ -495,7 +497,8 @@ app.post("/api/portal-data", async (req, res) => {
     announcement,
     googleConnectionType,
     sheetsWebAppUrl,
-    savedSpreadsheetId
+    savedSpreadsheetId,
+    financialConfig
   } = req.body;
 
   const updated = {
@@ -506,6 +509,7 @@ app.post("/api/portal-data", async (req, res) => {
     googleConnectionType: googleConnectionType !== undefined ? googleConnectionType : existing.googleConnectionType,
     sheetsWebAppUrl: sheetsWebAppUrl !== undefined ? sheetsWebAppUrl : existing.sheetsWebAppUrl,
     savedSpreadsheetId: savedSpreadsheetId !== undefined ? savedSpreadsheetId : existing.savedSpreadsheetId,
+    financialConfig: financialConfig !== undefined ? financialConfig : existing.financialConfig
   };
 
   await writePortalDataAsync(updated);

@@ -4,13 +4,13 @@ import {
   MapPin, CheckCircle2, ShieldAlert, BookOpen, AlertCircle, Plus, Sparkles, Megaphone 
 } from "lucide-react";
 
-import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft } from "./types";
+import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig } from "./types";
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer";
 import BrevettenHub from "./components/BrevettenHub";
 import AircraftMarketplace from "./components/AircraftMarketplace";
 import StaffPortal from "./components/StaffPortal";
-import { DEFAULT_ISSUED_LICENSES, DEFAULT_INVENTORY, AIRCRAFT_LIST } from "./data";
+import { DEFAULT_ISSUED_LICENSES, DEFAULT_INVENTORY, AIRCRAFT_LIST, DEFAULT_FINANCIAL_CONFIG } from "./data";
 import LSIAFuturisticMap from "./components/LSIAFuturisticMap";
 
 const STORAGE_KEY = "@luchtvaart_oranjestad_logbook";
@@ -113,6 +113,24 @@ export default function App() {
     localStorage.setItem("@luchtvaart_oranjestad_license_visibility", JSON.stringify(visibility));
   };
 
+  const [financialConfig, setFinancialConfig] = React.useState<FinancialConfig>(() => {
+    try {
+      const stored = localStorage.getItem("@luchtvaart_oranjestad_financial_config");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Failed to parse financial config:", e);
+    }
+    return DEFAULT_FINANCIAL_CONFIG;
+  });
+
+  const handleUpdateFinancialConfig = (updated: FinancialConfig) => {
+    setFinancialConfig(updated);
+    localStorage.setItem("@luchtvaart_oranjestad_financial_config", JSON.stringify(updated));
+    saveSharedPortalData({ financialConfig: updated });
+  };
+
   // Auto-switch to staff tab if redirecting back from Discord with code parameter
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -208,6 +226,10 @@ export default function App() {
             setSavedSpreadsheetId(data.savedSpreadsheetId);
             localStorage.setItem("@luchtvaart_oranjestad_spreadsheet_id", data.savedSpreadsheetId);
           }
+          if (data.financialConfig !== undefined && data.financialConfig !== null) {
+            setFinancialConfig(data.financialConfig);
+            localStorage.setItem("@luchtvaart_oranjestad_financial_config", JSON.stringify(data.financialConfig));
+          }
         }
       } catch (error) {
         console.error("Mislukt om gedeelde portaalgegevens op te halen:", error);
@@ -233,6 +255,7 @@ export default function App() {
     googleConnectionType?: "auth" | "webapp";
     sheetsWebAppUrl?: string;
     savedSpreadsheetId?: string;
+    financialConfig?: FinancialConfig;
   }) => {
     try {
       await fetch("/api/portal-data", {
@@ -494,7 +517,7 @@ export default function App() {
 
         {/* Tab 2: Vliegbrevetten portfolio & purchasing */}
         {currentTab === "brevetten" && (
-          <BrevettenHub licenseVisibility={licenseVisibility} />
+          <BrevettenHub licenseVisibility={licenseVisibility} financialConfig={financialConfig} />
         )}
 
         {/* Tab 3: Airplanes/Helicopters Marketplace */}
@@ -528,6 +551,8 @@ export default function App() {
             onUpdateSheetsWebAppUrl={handleUpdateSheetsWebAppUrl}
             propSavedSpreadsheetId={savedSpreadsheetId}
             onUpdateSavedSpreadsheetId={handleUpdateSavedSpreadsheetId}
+            financialConfig={financialConfig}
+            onUpdateFinancialConfig={handleUpdateFinancialConfig}
           />
         )}
       </main>

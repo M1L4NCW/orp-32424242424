@@ -33,6 +33,10 @@
         "savedSpreadsheetId": {
           "type": "string",
           "description": "The target Sheets identifier"
+        },
+        "financialConfig": {
+          "type": "object",
+          "description": "Adjustable financial rates, including brevet pricing, wages, taxes, and cost matrices"
         }
       }
     }

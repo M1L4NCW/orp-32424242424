@@ -1,13 +1,22 @@
 import React from "react";
 import { Award, CheckCircle2, MessageSquare } from "lucide-react";
 import { LICENSES } from "../data";
-import { License, PilotLogbook } from "../types";
+import { License, PilotLogbook, FinancialConfig } from "../types";
 
 interface BrevettenHubProps {
   licenseVisibility?: Record<string, boolean>;
+  financialConfig?: FinancialConfig;
 }
 
-export default function BrevettenHub({ licenseVisibility }: BrevettenHubProps) {
+export default function BrevettenHub({ licenseVisibility, financialConfig }: BrevettenHubProps) {
+  const getLicensePrice = (id: string, defaultPrice: number) => {
+    if (!financialConfig) return defaultPrice;
+    if (id === "helicopter") return financialConfig.helicopterPrice;
+    if (id === "small-plane") return financialConfig.smallPlanePrice;
+    if (id === "large-plane") return financialConfig.largePlanePrice;
+    return defaultPrice;
+  };
+
   const filteredLicenses = LICENSES.filter(lic => {
     return !licenseVisibility || licenseVisibility[lic.id] !== false;
   });
@@ -125,7 +134,7 @@ export default function BrevettenHub({ licenseVisibility }: BrevettenHubProps) {
                     </div>
                     <div className="text-right">
                       <p className="text-slate-400 font-mono text-xs uppercase font-medium">PRIJS</p>
-                      <p className="text-white font-mono font-bold text-sm">€{lic.price.toLocaleString("nl-NL")}</p>
+                      <p className="text-white font-mono font-bold text-sm">€{getLicensePrice(lic.id, lic.price).toLocaleString("nl-NL")}</p>
                     </div>
                   </div>
 
@@ -147,7 +156,7 @@ export default function BrevettenHub({ licenseVisibility }: BrevettenHubProps) {
                   </div>
                   <div className="mt-3 sm:mt-0 bg-slate-900 p-4 rounded-xl border border-slate-800 text-center sm:text-right shrink-0">
                     <p className="text-[10px] text-slate-400 font-mono">BREVET PRIJS</p>
-                    <p className="text-xl font-bold text-[#ea580c] font-mono">€{selectedLicense.price.toLocaleString("nl-NL")}</p>
+                    <p className="text-xl font-bold text-[#ea580c] font-mono">€{getLicensePrice(selectedLicense.id, selectedLicense.price).toLocaleString("nl-NL")}</p>
                   </div>
                 </div>
 

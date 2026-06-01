@@ -4,7 +4,7 @@ import {
   Settings, UserCheck, HelpCircle, AlertCircle, FileText, CheckCircle, Plus, Image, Users, HelpCircle as HelpIcon,
   Coins, TrendingUp, Percent, Award, Calendar, Megaphone
 } from "lucide-react";
-import { IssuedLicense, AircraftInventory, Aircraft, StaffUser } from "../types";
+import { IssuedLicense, AircraftInventory, Aircraft, StaffUser, FinancialConfig } from "../types";
 import { LICENSES } from "../data";
 import { User } from "firebase/auth";
 import { 
@@ -40,6 +40,8 @@ interface StaffPortalProps {
   onUpdateSheetsWebAppUrl?: (url: string) => void;
   propSavedSpreadsheetId?: string;
   onUpdateSavedSpreadsheetId?: (id: string) => void;
+  financialConfig?: FinancialConfig;
+  onUpdateFinancialConfig?: (config: FinancialConfig) => void;
 }
 
 // Default staff accounts
@@ -182,7 +184,9 @@ export default function StaffPortal({
   propSheetsWebAppUrl,
   onUpdateSheetsWebAppUrl,
   propSavedSpreadsheetId,
-  onUpdateSavedSpreadsheetId
+  onUpdateSavedSpreadsheetId,
+  financialConfig,
+  onUpdateFinancialConfig
 }: StaffPortalProps) {
   
   // Accounts management
@@ -207,6 +211,55 @@ export default function StaffPortal({
     }
     return [];
   });
+
+  // Financial dynamic variables for customization
+  const [helicopterPrice, setHelicopterPrice] = React.useState(financialConfig?.helicopterPrice ?? 250000);
+  const [helicopterCommission, setHelicopterCommission] = React.useState(financialConfig?.helicopterCommission ?? 35000);
+  const [helicopterStandardTax, setHelicopterStandardTax] = React.useState(financialConfig?.helicopterStandardTax ?? 15000);
+  const [helicopterGrossTaxRate, setHelicopterGrossTaxRate] = React.useState(financialConfig?.helicopterGrossTaxRate ?? 7);
+  const [helicopterManagementFee, setHelicopterManagementFee] = React.useState(financialConfig?.helicopterManagementFee ?? 30000);
+  const [helicopterPurchaseCost, setHelicopterPurchaseCost] = React.useState(financialConfig?.helicopterPurchaseCost ?? 100000);
+
+  const [smallPlanePrice, setSmallPlanePrice] = React.useState(financialConfig?.smallPlanePrice ?? 500000);
+  const [smallPlaneCommission, setSmallPlaneCommission] = React.useState(financialConfig?.smallPlaneCommission ?? 60000);
+  const [smallPlaneStandardTax, setSmallPlaneStandardTax] = React.useState(financialConfig?.smallPlaneStandardTax ?? 15000);
+  const [smallPlaneGrossTaxRate, setSmallPlaneGrossTaxRate] = React.useState(financialConfig?.smallPlaneGrossTaxRate ?? 7);
+  const [smallPlaneManagementFee, setSmallPlaneManagementFee] = React.useState(financialConfig?.smallPlaneManagementFee ?? 30000);
+  const [smallPlanePurchaseCost, setSmallPlanePurchaseCost] = React.useState(financialConfig?.smallPlanePurchaseCost ?? 200000);
+
+  const [largePlanePrice, setLargePlanePrice] = React.useState(financialConfig?.largePlanePrice ?? 750000);
+  const [largePlaneCommission, setLargePlaneCommission] = React.useState(financialConfig?.largePlaneCommission ?? 80000);
+  const [largePlaneStandardTax, setLargePlaneStandardTax] = React.useState(financialConfig?.largePlaneStandardTax ?? 15000);
+  const [largePlaneGrossTaxRate, setLargePlaneGrossTaxRate] = React.useState(financialConfig?.largePlaneGrossTaxRate ?? 7);
+  const [largePlaneManagementFee, setLargePlaneManagementFee] = React.useState(financialConfig?.largePlaneManagementFee ?? 30000);
+  const [largePlanePurchaseCost, setLargePlanePurchaseCost] = React.useState(financialConfig?.largePlanePurchaseCost ?? 300000);
+
+  const [financialSaveSuccess, setFinancialSaveSuccess] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (financialConfig) {
+      setHelicopterPrice(financialConfig.helicopterPrice);
+      setHelicopterCommission(financialConfig.helicopterCommission);
+      setHelicopterStandardTax(financialConfig.helicopterStandardTax);
+      setHelicopterGrossTaxRate(financialConfig.helicopterGrossTaxRate);
+      setHelicopterManagementFee(financialConfig.helicopterManagementFee);
+      setHelicopterPurchaseCost(financialConfig.helicopterPurchaseCost);
+
+      setSmallPlanePrice(financialConfig.smallPlanePrice);
+      setSmallPlaneCommission(financialConfig.smallPlaneCommission);
+      setSmallPlaneStandardTax(financialConfig.smallPlaneStandardTax);
+      setSmallPlaneGrossTaxRate(financialConfig.smallPlaneGrossTaxRate);
+      setSmallPlaneManagementFee(financialConfig.smallPlaneManagementFee);
+      setSmallPlanePurchaseCost(financialConfig.smallPlanePurchaseCost);
+
+      setLargePlanePrice(financialConfig.largePlanePrice);
+      setLargePlaneCommission(financialConfig.largePlaneCommission);
+      setLargePlaneStandardTax(financialConfig.largePlaneStandardTax);
+      setLargePlaneGrossTaxRate(financialConfig.largePlaneGrossTaxRate);
+      setLargePlaneManagementFee(financialConfig.largePlaneManagementFee);
+      setLargePlanePurchaseCost(financialConfig.largePlanePurchaseCost);
+    }
+  }, [financialConfig]);
 
   // Authentication states
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
@@ -1438,33 +1491,54 @@ export default function StaffPortal({
         {activeTab === "administration" && (role === "owner" || role === "manager") && (() => {
           // Financial settings based on requirements
           const getFinancialDetails = (licenseType: "helicopter" | "small-plane" | "large-plane") => {
+            const hPrice = financialConfig?.helicopterPrice ?? 250000;
+            const hComm = financialConfig?.helicopterCommission ?? 35000;
+            const hTaxStd = financialConfig?.helicopterStandardTax ?? 15000;
+            const hTaxRate = financialConfig?.helicopterGrossTaxRate ?? 7;
+            const hFee = financialConfig?.helicopterManagementFee ?? 30000;
+            const hPch = financialConfig?.helicopterPurchaseCost ?? 100000;
+
+            const sPrice = financialConfig?.smallPlanePrice ?? 500000;
+            const sComm = financialConfig?.smallPlaneCommission ?? 60000;
+            const sTaxStd = financialConfig?.smallPlaneStandardTax ?? 15000;
+            const sTaxRate = financialConfig?.smallPlaneGrossTaxRate ?? 7;
+            const sFee = financialConfig?.smallPlaneManagementFee ?? 30000;
+            const sPch = financialConfig?.smallPlanePurchaseCost ?? 200000;
+
+            const lPrice = financialConfig?.largePlanePrice ?? 750000;
+            const lComm = financialConfig?.largePlaneCommission ?? 80000;
+            const lTaxStd = financialConfig?.largePlaneStandardTax ?? 15000;
+            const lTaxRate = financialConfig?.largePlaneGrossTaxRate ?? 7;
+            const lFee = financialConfig?.largePlaneManagementFee ?? 30000;
+            const lPch = financialConfig?.largePlanePurchaseCost ?? 300000;
+
             switch (licenseType) {
               case "helicopter":
                 return {
-                  price: 250000,
-                  commission: 35000,
-                  standardTax: 15000,
-                  grossTax: 250000 * 0.07, // €17,500
-                  managementFee: 30000, // 2x 15k
-                  purchaseCost: 100000 // Inkoop helicopter = 100k
+                  price: hPrice,
+                  commission: hComm,
+                  standardTax: hTaxStd,
+                  grossTax: hPrice * (hTaxRate / 100),
+                  managementFee: hFee,
+                  purchaseCost: hPch
                 };
               case "small-plane":
                 return {
-                  price: 500000,
-                  commission: 60000,
-                  standardTax: 15000,
-                  grossTax: 500000 * 0.07, // €35,000
-                  managementFee: 30000, // 2x 15k
-                  purchaseCost: 200000 // Inkoop klein vliegtuig = 200k
+                  price: sPrice,
+                  commission: sComm,
+                  standardTax: sTaxStd,
+                  grossTax: sPrice * (sTaxRate / 100),
+                  managementFee: sFee,
+                  purchaseCost: sPch
                 };
               case "large-plane":
                 return {
-                  price: 750000,
-                  commission: 80000,
-                  standardTax: 15000,
-                  grossTax: 750000 * 0.07, // €52,500
-                  managementFee: 30000, // 2x 15k
-                  purchaseCost: 300000 // Inkoop groot vliegtuig = 300k
+                  price: lPrice,
+                  commission: lComm,
+                  standardTax: lTaxStd,
+                  grossTax: lPrice * (lTaxRate / 100),
+                  managementFee: lFee,
+                  purchaseCost: lPch
                 };
               default:
                 return { price: 0, commission: 0, standardTax: 0, grossTax: 0, managementFee: 0, purchaseCost: 0 };
@@ -1635,6 +1709,79 @@ export default function StaffPortal({
             }
           };
 
+          // Save the financial configuration to parent handler (Firestore and local storage)
+          const handleSaveFinancialConfig = (e: React.FormEvent) => {
+            e.preventDefault();
+            if (role !== "owner" && role !== "manager") {
+              setPortalAlertMessage("Alleen de directie (Eigenaar / Manager) mag tarieven en salarissen overschrijven!");
+              return;
+            }
+            if (onUpdateFinancialConfig) {
+              onUpdateFinancialConfig({
+                helicopterPrice: Number(helicopterPrice),
+                helicopterCommission: Number(helicopterCommission),
+                helicopterStandardTax: Number(helicopterStandardTax),
+                helicopterGrossTaxRate: Number(helicopterGrossTaxRate),
+                helicopterManagementFee: Number(helicopterManagementFee),
+                helicopterPurchaseCost: Number(helicopterPurchaseCost),
+
+                smallPlanePrice: Number(smallPlanePrice),
+                smallPlaneCommission: Number(smallPlaneCommission),
+                smallPlaneStandardTax: Number(smallPlaneStandardTax),
+                smallPlaneGrossTaxRate: Number(smallPlaneGrossTaxRate),
+                smallPlaneManagementFee: Number(smallPlaneManagementFee),
+                smallPlanePurchaseCost: Number(smallPlanePurchaseCost),
+
+                largePlanePrice: Number(largePlanePrice),
+                largePlaneCommission: Number(largePlaneCommission),
+                largePlaneStandardTax: Number(largePlaneStandardTax),
+                largePlaneGrossTaxRate: Number(largePlaneGrossTaxRate),
+                largePlaneManagementFee: Number(largePlaneManagementFee),
+                largePlanePurchaseCost: Number(largePlanePurchaseCost)
+              });
+              setFinancialSaveSuccess("Financiële tarieven en medewerkerslonen succesvol opgeslagen en gesynchroniseerd!");
+              setTimeout(() => setFinancialSaveSuccess(null), 6000);
+            }
+          };
+
+          const handleResetFinancialDefaults = () => {
+            if (role !== "owner" && role !== "manager") {
+              setPortalAlertMessage("Alleen de directie mag tarieven en salarissen terugzetten!");
+              return;
+            }
+            const confirmReset = window.confirm(
+              "Wilt u alle tarieven, belastingen, loonschalen en inkoopkosten terugzetten naar de originele vliegschool standaarden?"
+            );
+            if (!confirmReset) return;
+
+            if (onUpdateFinancialConfig) {
+              const defaults = {
+                helicopterPrice: 250000,
+                helicopterCommission: 35000,
+                helicopterStandardTax: 15000,
+                helicopterGrossTaxRate: 7,
+                helicopterManagementFee: 30000,
+                helicopterPurchaseCost: 100000,
+
+                smallPlanePrice: 500000,
+                smallPlaneCommission: 60000,
+                smallPlaneStandardTax: 15000,
+                smallPlaneGrossTaxRate: 7,
+                smallPlaneManagementFee: 30000,
+                smallPlanePurchaseCost: 200000,
+
+                largePlanePrice: 750000,
+                largePlaneCommission: 80000,
+                largePlaneStandardTax: 15000,
+                largePlaneGrossTaxRate: 7,
+                largePlaneManagementFee: 30000,
+                largePlanePurchaseCost: 300000
+              };
+              onUpdateFinancialConfig(defaults);
+              setPortalAlertMessage("De tarieven en loonsystemen zijn teruggezet naar de vliegschool standaarden!");
+            }
+          };
+
           return (
             <div className="space-y-8 animate-fade-in font-mono text-xs text-slate-300">
               
@@ -1742,6 +1889,271 @@ export default function StaffPortal({
 
               </div>
 
+              {/* INTERACTIVE FORM FOR ADJUSTABLE TARIFFS AND SALARIES */}
+              <div className="bg-slate-950 border border-slate-850 p-6 rounded-3xl space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900/60 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg">
+                      <Settings className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-semibold text-base text-white text-left">Financiële Tarieven & Loon Instellingen (Aanpasbaar)</h3>
+                      <p className="text-[10px] text-slate-450 font-light mt-0.5 text-left">
+                        Overschrijf de vliegbrevet prijzen, staff-bonussen / commissies, inkoopkosten en belastingtarieven voor alle 3 klassen.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetFinancialDefaults}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-lg border border-slate-800 transition-all font-sans text-[10px] uppercase font-bold self-start sm:self-center cursor-pointer"
+                  >
+                    Herstel Standaardwaarden
+                  </button>
+                </div>
+
+                {financialSaveSuccess && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-xl flex items-center gap-2 text-[11px] animate-pulse">
+                    <CheckCircle className="h-4 w-4 shrink-0" />
+                    <span>{financialSaveSuccess}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveFinancialConfig} className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    {/* Column 1: Helicopter Brevet */}
+                    <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
+                      <div className="flex items-center gap-2 border-b border-slate-900 pb-2.5">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                        <h4 className="font-display font-semibold text-white text-xs uppercase tracking-wider">Helikopter Brevet</h4>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Verkoopprijs Brevet (€):</label>
+                          <input
+                            type="number"
+                            value={helicopterPrice}
+                            onChange={(e) => setHelicopterPrice(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Instructeursloon / Commissie (€):</label>
+                          <input
+                            type="number"
+                            value={helicopterCommission}
+                            onChange={(e) => setHelicopterCommission(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Inkoopkosten Brevet (€):</label>
+                          <input
+                            type="number"
+                            value={helicopterPurchaseCost}
+                            onChange={(e) => setHelicopterPurchaseCost(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-1">Winstbelasting (%):</label>
+                            <input
+                              type="number"
+                              value={helicopterGrossTaxRate}
+                              onChange={(e) => setHelicopterGrossTaxRate(Number(e.target.value))}
+                              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-1">Vast Belast (€):</label>
+                            <input
+                              type="number"
+                              value={helicopterStandardTax}
+                              onChange={(e) => setHelicopterStandardTax(Number(e.target.value))}
+                              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Management Fee (€):</label>
+                          <input
+                            type="number"
+                            value={helicopterManagementFee}
+                            onChange={(e) => setHelicopterManagementFee(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Column 2: Vliegtuig Klein */}
+                    <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
+                      <div className="flex items-center gap-2 border-b border-slate-900 pb-2.5">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                        <h4 className="font-display font-semibold text-white text-xs uppercase tracking-wider">Vliegtuig Klein</h4>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Verkoopprijs Brevet (€):</label>
+                          <input
+                            type="number"
+                            value={smallPlanePrice}
+                            onChange={(e) => setSmallPlanePrice(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Instructeursloon / Commissie (€):</label>
+                          <input
+                            type="number"
+                            value={smallPlaneCommission}
+                            onChange={(e) => setSmallPlaneCommission(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Inkoopkosten Brevet (€):</label>
+                          <input
+                            type="number"
+                            value={smallPlanePurchaseCost}
+                            onChange={(e) => setSmallPlanePurchaseCost(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-1">Winstbelasting (%):</label>
+                            <input
+                              type="number"
+                              value={smallPlaneGrossTaxRate}
+                              onChange={(e) => setSmallPlaneGrossTaxRate(Number(e.target.value))}
+                              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-1">Vast Belast (€):</label>
+                            <input
+                              type="number"
+                              value={smallPlaneStandardTax}
+                              onChange={(e) => setSmallPlaneStandardTax(Number(e.target.value))}
+                              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Management Fee (€):</label>
+                          <input
+                            type="number"
+                            value={smallPlaneManagementFee}
+                            onChange={(e) => setSmallPlaneManagementFee(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Column 3: Vliegtuig Groot */}
+                    <div className="bg-slate-900/40 border border-slate-850 p-5 rounded-2xl space-y-4 text-left">
+                      <div className="flex items-center gap-2 border-b border-slate-900 pb-2.5">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                        <h4 className="font-display font-semibold text-white text-xs uppercase tracking-wider">Vliegtuig Groot</h4>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Verkoopprijs Brevet (€):</label>
+                          <input
+                            type="number"
+                            value={largePlanePrice}
+                            onChange={(e) => setLargePlanePrice(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Instructeursloon / Commissie (€):</label>
+                          <input
+                            type="number"
+                            value={largePlaneCommission}
+                            onChange={(e) => setLargePlaneCommission(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Inkoopkosten Brevet (€):</label>
+                          <input
+                            type="number"
+                            value={largePlanePurchaseCost}
+                            onChange={(e) => setLargePlanePurchaseCost(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-1">Winstbelasting (%):</label>
+                            <input
+                              type="number"
+                              value={largePlaneGrossTaxRate}
+                              onChange={(e) => setLargePlaneGrossTaxRate(Number(e.target.value))}
+                              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-1">Vast Belast (€):</label>
+                            <input
+                              type="number"
+                              value={largePlaneStandardTax}
+                              onChange={(e) => setLargePlaneStandardTax(Number(e.target.value))}
+                              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Management Fee (€):</label>
+                          <input
+                            type="number"
+                            value={largePlaneManagementFee}
+                            onChange={(e) => setLargePlaneManagementFee(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-500 focus:outline-none"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div className="flex justify-end pt-2 border-t border-slate-900/30">
+                    <button
+                      type="submit"
+                      className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-sans font-bold tracking-wider text-xs uppercase px-8 py-3 rounded-xl cursor-pointer shadow-lg shadow-amber-500/10 transition-all font-sans"
+                    >
+                      ✓ Financiële Tarieven & Wijzigingen Opslaan
+                    </button>
+                  </div>
+                </form>
+              </div>
+
               {/* Row 2: Performance Statistics for all Employees */}
               <div className="bg-slate-950 border border-slate-800/80 p-6 rounded-3xl">
                 <div className="flex items-center justify-between mb-4 border-b border-slate-900 pb-3">
@@ -1751,8 +2163,8 @@ export default function StaffPortal({
                   </div>
                   <span className="text-[10px] text-slate-500">Volledig geautomatiseerd</span>
                 </div>
-                <p className="text-xs text-slate-400 font-light mb-6">
-                  Uitsplitsing van het aantal examens en verdiende premies per instructeur (Heli = €35.000, Vliegtuig Klein = €60.000, Vliegtuig Groot = €80.000).
+                <p className="text-xs text-slate-400 font-light mb-6 text-left">
+                  Uitsplitsing van het aantal examens en verdiende premies per instructeur (Heli = €{(financialConfig?.helicopterCommission ?? 35000).toLocaleString("nl-NL")}, Vliegtuig Klein = €{(financialConfig?.smallPlaneCommission ?? 60000).toLocaleString("nl-NL")}, Vliegtuig Groot = €{(financialConfig?.largePlaneCommission ?? 80000).toLocaleString("nl-NL")}).
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

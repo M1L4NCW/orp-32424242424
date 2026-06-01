@@ -110,3 +110,27 @@ export interface AircraftInventory {
   isVisible?: boolean;
 }
 
+export interface FinancialConfig {
+  helicopterPrice: number;
+  helicopterCommission: number;
+  helicopterStandardTax: number;
+  helicopterGrossTaxRate: number; // percentage (e.g. 7 for 7%)
+  helicopterManagementFee: number;
+  helicopterPurchaseCost: number;
+
+  smallPlanePrice: number;
+  smallPlaneCommission: number;
+  smallPlaneStandardTax: number;
+  smallPlaneGrossTaxRate: number; // percentage (e.g. 7 for 7%)
+  smallPlaneManagementFee: number;
+  smallPlanePurchaseCost: number;
+
+  largePlanePrice: number;
+  largePlaneCommission: number;
+  largePlaneStandardTax: number;
+  largePlaneGrossTaxRate: number; // percentage (e.g. 7 for 7%)
+  largePlaneManagementFee: number;
+  largePlanePurchaseCost: number;
+}
+
+

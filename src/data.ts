@@ -1,4 +1,28 @@
-import { License, Aircraft, TrainingCourse, IssuedLicense } from "./types";
+import { License, Aircraft, TrainingCourse, IssuedLicense, FinancialConfig } from "./types";
+
+export const DEFAULT_FINANCIAL_CONFIG: FinancialConfig = {
+  helicopterPrice: 250000,
+  helicopterCommission: 35000,
+  helicopterStandardTax: 15000,
+  helicopterGrossTaxRate: 7,
+  helicopterManagementFee: 30000,
+  helicopterPurchaseCost: 100000,
+
+  smallPlanePrice: 500000,
+  smallPlaneCommission: 60000,
+  smallPlaneStandardTax: 15000,
+  smallPlaneGrossTaxRate: 7,
+  smallPlaneManagementFee: 30000,
+  smallPlanePurchaseCost: 200000,
+
+  largePlanePrice: 750000,
+  largePlaneCommission: 80000,
+  largePlaneStandardTax: 15000,
+  largePlaneGrossTaxRate: 7,
+  largePlaneManagementFee: 30000,
+  largePlanePurchaseCost: 300000
+};
+
 
 export const LICENSES: License[] = [
   {
