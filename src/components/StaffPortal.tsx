@@ -1,6 +1,6 @@
 import React from "react";
 import { 
-  ShieldCheck, FileSpreadsheet, PlusCircle, Trash2, 
+  ShieldCheck, FileSpreadsheet, PlusCircle, Trash2, Pencil,
   Settings, UserCheck, HelpCircle, AlertCircle, FileText, CheckCircle, Plus, Image, Users, HelpCircle as HelpIcon,
   Coins, TrendingUp, Percent, Award, Calendar, Megaphone
 } from "lucide-react";
@@ -201,6 +201,83 @@ export default function StaffPortal({
 
   // Discord ID for manual employees creation
   const [newDiscordId, setNewDiscordId] = React.useState<string>("");
+
+  // Editing license states
+  const [editingLic, setEditingLic] = React.useState<IssuedLicense | null>(null);
+  const [editCitizenName, setEditCitizenName] = React.useState("");
+  const [editCitizenId, setEditCitizenId] = React.useState("");
+  const [editLicenseType, setEditLicenseType] = React.useState<"helicopter" | "small-plane" | "large-plane">("small-plane");
+  const [editUseCustomInstructor, setEditUseCustomInstructor] = React.useState(false);
+  const [editSelectedInstructorId, setEditSelectedInstructorId] = React.useState("");
+  const [editCustomInstructorName, setEditCustomInstructorName] = React.useState("");
+  const [editCustomInstructorDiscordId, setEditCustomInstructorDiscordId] = React.useState("");
+  const [editIssueDate, setEditIssueDate] = React.useState("");
+  const [editRemarks, setEditRemarks] = React.useState("");
+  const [editEmployeePaid, setEditEmployeePaid] = React.useState(false);
+  const [editTaxPaid, setEditTaxPaid] = React.useState(false);
+
+  const handleOpenEditModal = (lic: IssuedLicense) => {
+    setEditingLic(lic);
+    setEditCitizenName(lic.citizenName);
+    setEditCitizenId(lic.citizenId);
+    setEditLicenseType(lic.licenseType);
+    setEditIssueDate(lic.issueDate);
+    setEditRemarks(lic.remarks || "");
+    setEditEmployeePaid(!!lic.employeeCommissionPaid);
+    setEditTaxPaid(!!lic.taxPaid);
+
+    const matchedStaff = staffAccounts.find(s => s.fullname === lic.issuedBy);
+    if (matchedStaff) {
+      setEditSelectedInstructorId(matchedStaff.id);
+      setEditUseCustomInstructor(false);
+    } else {
+      setEditSelectedInstructorId("");
+      setEditUseCustomInstructor(true);
+      setEditCustomInstructorName(lic.issuedBy);
+      setEditCustomInstructorDiscordId(lic.issuedByDiscordId || "");
+    }
+  };
+
+  const handleSaveEditLicense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLic) return;
+
+    let finalInstructorName = "Instructeur Oranjestad";
+    let finalInstructorDiscordId = "";
+
+    if (editUseCustomInstructor) {
+      finalInstructorName = editCustomInstructorName.trim() || "Aangepaste Instructeur";
+      finalInstructorDiscordId = editCustomInstructorDiscordId.trim();
+    } else {
+      const selectedStaff = staffAccounts.find(s => s.id === editSelectedInstructorId);
+      if (selectedStaff) {
+        finalInstructorName = selectedStaff.fullname;
+        finalInstructorDiscordId = selectedStaff.discordId || "";
+      } else {
+        // Fallback
+        const matchedActive = staffAccounts.find(u => u.fullname === editCustomInstructorName);
+        if (matchedActive) {
+          finalInstructorDiscordId = matchedActive.discordId || "";
+        }
+      }
+    }
+
+    const updated: IssuedLicense = {
+      ...editingLic,
+      citizenName: editCitizenName.trim(),
+      citizenId: editCitizenId.trim(),
+      licenseType: editLicenseType,
+      issuedBy: finalInstructorName,
+      issuedByDiscordId: finalInstructorDiscordId || undefined,
+      issueDate: editIssueDate.trim(),
+      remarks: editRemarks.trim() || undefined,
+      employeeCommissionPaid: editEmployeePaid,
+      taxPaid: editTaxPaid
+    };
+
+    onUpdateLicense(updated);
+    setEditingLic(null);
+  };
 
   React.useEffect(() => {
     if (staffAccounts.length > 0 && !selectedInstructorId) {
@@ -1352,8 +1429,8 @@ export default function StaffPortal({
                         <th className="py-3 px-4">Docent (Staff)</th>
                         <th className="py-3 px-4">Datum</th>
                         <th className="py-3 px-4">Commissie status</th>
-                        <th className="py-3 px-4">Belasting afgedregen</th>
-                        {(role === "manager" || role === "owner") && <th className="py-3 px-4 text-right">Intrekken</th>}
+                        <th className="py-3 px-4 font-bold text-slate-500">Belasting afgedragen</th>
+                        <th className="py-3 px-4 text-right">Acties</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-850/60 text-slate-300">
@@ -1393,17 +1470,28 @@ export default function StaffPortal({
                               {lic.taxPaid ? "Afgedragen" : "Openstaand"}
                             </span>
                           </td>
-                          {(role === "manager" || role === "owner") && (
-                            <td className="py-3 px-4 text-right">
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
-                                onClick={() => onRemoveLicense(lic.id)}
-                                className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-slate-800 rounded transition-all cursor-pointer"
-                                title="Brevet intrekken"
+                                type="button"
+                                onClick={() => handleOpenEditModal(lic)}
+                                className="p-1.5 text-slate-400 hover:text-[#ea580c] hover:bg-slate-800 rounded transition-all cursor-pointer inline-flex items-center"
+                                title="Brevet bewerken"
                               >
-                                <Trash2 className="h-4.5 w-4.5" />
+                                <Pencil className="h-4 w-4" />
                               </button>
-                            </td>
-                          )}
+                              {(role === "manager" || role === "owner") && (
+                                <button
+                                  type="button"
+                                  onClick={() => onRemoveLicense(lic.id)}
+                                  className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-slate-800 rounded transition-all cursor-pointer inline-flex items-center"
+                                  title="Brevet intrekken"
+                                >
+                                  <Trash2 className="h-4.5 w-4.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -3437,6 +3525,218 @@ export default function StaffPortal({
                   Voldoen & Afdragen
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Edit License Modal */}
+        {editingLic && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-slate-950 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-2xl w-full mx-4 my-8 shadow-2xl relative text-left">
+              <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
+                <Pencil className="h-5 w-5 text-[#ea580c]" />
+                <h3 className="font-display font-semibold text-lg text-white">Brevet Aanpassen</h3>
+                <span className="ml-auto text-xs text-slate-500 font-mono font-bold uppercase bg-slate-900 border border-slate-800 px-2.5 py-1 rounded">ID: {editingLic.id}</span>
+              </div>
+
+              <form onSubmit={handleSaveEditLicense} className="space-y-4 font-mono text-xs text-slate-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Klant (Piloot)</label>
+                    <input
+                      type="text"
+                      required
+                      value={editCitizenName}
+                      onChange={(e) => setEditCitizenName(e.target.value)}
+                      placeholder="Bijv. John Doe"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-slate-200"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Burger ID / BSN</label>
+                    <input
+                      type="text"
+                      required
+                      value={editCitizenId}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (val && !val.toUpperCase().startsWith("BSN-")) {
+                          val = "BSN-" + val.replace(/^BSN-?/i, "");
+                        }
+                        setEditCitizenId(val);
+                      }}
+                      placeholder="Bijv. BSN-12345678"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Diploma Categorie</label>
+                    <select
+                      value={editLicenseType}
+                      onChange={(e) => setEditLicenseType(e.target.value as any)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-slate-300"
+                    >
+                      <option value="helicopter">Helikopter brevet</option>
+                      <option value="small-plane">Vliegtuig Klein (Single-Engine)</option>
+                      <option value="large-plane">Vliegtuig Groot (Multi-Engine/Jet)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Datum Uitgegeven</label>
+                    <input
+                      type="text"
+                      required
+                      value={editIssueDate}
+                      onChange={(e) => setEditIssueDate(e.target.value)}
+                      placeholder="Bijv: 1-6-2026"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Instructor Selection Inside Edit Modal */}
+                <div className="space-y-3 pt-2 text-left">
+                  <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold text-[#ea580c]">
+                    👨‍✈️ Selecteer Instructeur (voorzien van Discord ID)
+                  </label>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {staffAccounts.map((acc) => {
+                      const isSelected = editSelectedInstructorId === acc.id && !editUseCustomInstructor;
+                      return (
+                        <div
+                          key={acc.id}
+                          onClick={() => {
+                            setEditSelectedInstructorId(acc.id);
+                            setEditUseCustomInstructor(false);
+                          }}
+                          className={`border rounded-xl p-3 flex flex-col justify-between cursor-pointer transition-all duration-300 ${
+                            isSelected
+                              ? "bg-[#ea580c]/15 border-[#ea580c] shadow-lg shadow-[#ea580c]/5"
+                              : "bg-slate-900/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-display font-semibold text-white text-xs block truncate">{acc.fullname}</span>
+                            <div className="h-4 w-4 rounded-full border border-slate-700 flex items-center justify-center">
+                              {isSelected && <div className="h-2 w-2 rounded-full bg-[#ea580c]"></div>}
+                            </div>
+                          </div>
+                          <div className="mt-1 font-mono text-[9px] text-slate-400 leading-tight">
+                            Discord ID: <span className={acc.discordId ? "text-cyan-400 font-bold" : "text-amber-500/80 italic font-medium"}>{acc.discordId || "Geen Discord ID"}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    <div
+                      onClick={() => setEditUseCustomInstructor(true)}
+                      className={`border rounded-xl p-3 flex flex-col justify-between cursor-pointer transition-all duration-300 ${
+                        editUseCustomInstructor
+                          ? "bg-[#ea580c]/15 border-[#ea580c] shadow-lg shadow-[#ea580c]/5"
+                          : "bg-slate-900/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-display font-semibold text-white text-xs block">Handmatig Invullen</span>
+                        <div className="h-4 w-4 rounded-full border border-slate-700 flex items-center justify-center">
+                          {editUseCustomInstructor && <div className="h-2 w-2 rounded-full bg-[#ea580c]"></div>}
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-slate-500 font-sans leading-tight mt-1">
+                        Ander personeelslid of handmatige invoer gebruiken.
+                      </p>
+                    </div>
+                  </div>
+
+                  {editUseCustomInstructor && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 bg-slate-950/45 p-3.5 rounded-xl border border-slate-800/80 text-left">
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-450 uppercase block font-medium">Instructeur Naam</label>
+                        <input
+                          type="text"
+                          required={editUseCustomInstructor}
+                          value={editCustomInstructorName}
+                          onChange={(e) => setEditCustomInstructorName(e.target.value)}
+                          placeholder="Bijv: Mike Lapose"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 outline-none focus:border-[#ea580c] text-slate-200"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-450 uppercase block font-medium">Discord ID (Cijfers)</label>
+                        <input
+                          type="text"
+                          required={editUseCustomInstructor}
+                          value={editCustomInstructorDiscordId}
+                          onChange={(e) => setEditCustomInstructorDiscordId(e.target.value)}
+                          placeholder="Bijv: 304859039201928301"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 outline-none focus:border-[#ea580c] text-slate-200"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold">Opmerkingen / Boekingsinformatie</label>
+                  <textarea
+                    value={editRemarks}
+                    onChange={(e) => setEditRemarks(e.target.value)}
+                    placeholder="Opmerkingen omtrent de examenvlucht..."
+                    rows={2}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-[#ea580c] outline-none text-slate-200 text-xs resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="bg-slate-900/60 border border-slate-850 p-3 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-white block text-[11px]">Medewerkerscommissie</span>
+                      <span className="text-[9px] text-slate-500">Is de commissie al uitbetaald?</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={editEmployeePaid}
+                      onChange={(e) => setEditEmployeePaid(e.target.checked)}
+                      className="w-4.5 h-4.5 rounded text-[#ea580c] focus:ring-[#ea580c] border-slate-850 bg-slate-950 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="bg-slate-900/60 border border-slate-850 p-3 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-white block text-[11px]">Vliegbelasting afgedragen</span>
+                      <span className="text-[9px] text-slate-500">Is de belasting afgedragen?</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={editTaxPaid}
+                      onChange={(e) => setEditTaxPaid(e.target.checked)}
+                      className="w-4.5 h-4.5 rounded text-[#ea580c] focus:ring-[#ea580c] border-slate-850 bg-slate-950 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-900">
+                  <button
+                    type="button"
+                    onClick={() => setEditingLic(null)}
+                    className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800/80 font-bold py-3 px-5 rounded-xl cursor-pointer transition-colors"
+                  >
+                    Annuleren
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-slate-950 font-bold py-3 px-6 rounded-xl uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Opslaan & Opslaan
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
