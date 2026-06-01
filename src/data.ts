@@ -1,4 +1,4 @@
-import { License, Aircraft, TrainingCourse, IssuedLicense, FinancialConfig } from "./types";
+import { License, Aircraft, TrainingCourse, IssuedLicense, FinancialConfig, AircraftInventory } from "./types";
 
 export const DEFAULT_FINANCIAL_CONFIG: FinancialConfig = {
   helicopterPrice: 250000,
@@ -72,7 +72,47 @@ export const LICENSES: License[] = [
   }
 ];
 
-export const AIRCRAFT_LIST: Aircraft[] = [];
+export const AIRCRAFT_LIST: Aircraft[] = [
+  {
+    id: "heli-r44",
+    name: "Robinson R44 Clipper II",
+    type: "helicopter",
+    manufacturer: "Robinson Helicopter Company",
+    basePrice: 250000,
+    topSpeedKnots: 110,
+    rangeKm: 560,
+    engineType: "Lycoming IO-540-AE1A5 (Zuiger)",
+    capacity: 4,
+    description: "Een uiterst betrouwbare, vierzits lichte helikopter. Ideaal voor trainingsvluchten, luchtfotografie en snelle verplaatsingen rondom Aruba's exclusieve resorts.",
+    imageTheme: "orange-sky"
+  },
+  {
+    id: "plane-c172",
+    name: "Cessna Skyhawk 172",
+    type: "small-plane",
+    manufacturer: "Cessna Aircraft Company",
+    basePrice: 500000,
+    topSpeedKnots: 124,
+    rangeKm: 1185,
+    engineType: "Lycoming IO-360-L2A (Glass Cockpit)",
+    capacity: 4,
+    description: "De legendarische klassieker. Wereldwijd de absolute nummer één voor pilotenopleidingen, gekenmerkt door ultieme vergevingsgezindheid en fantastisch zicht rondom.",
+    imageTheme: "clear-sky"
+  },
+  {
+    id: "plane-c560",
+    name: "Cessna Citation Sovereign+",
+    type: "large-plane",
+    manufacturer: "Textron Aviation",
+    basePrice: 750000,
+    topSpeedKnots: 460,
+    rangeKm: 5900,
+    engineType: "Pratt & Whitney PW306D (Twin-Jet)",
+    capacity: 12,
+    description: "De ultieme luxe in de Caribische stratosfeer. Deze executive jet brengt u in recordtijd en in alle rust, comfort en stijl direct naar Miami, New York of Bogota.",
+    imageTheme: "sunset-clouds"
+  }
+];
 
 export const COURSES: TrainingCourse[] = [
   {
@@ -107,7 +147,60 @@ export const COURSES: TrainingCourse[] = [
   }
 ];
 
-export const DEFAULT_ISSUED_LICENSES: IssuedLicense[] = [];
+export const DEFAULT_ISSUED_LICENSES: IssuedLicense[] = [
+  {
+    id: "lic-001",
+    citizenName: "Jan de Vries",
+    citizenId: "CID-49302",
+    licenseType: "helicopter",
+    issuedBy: "Eigenaar",
+    issueDate: "2026-05-12",
+    remarks: "Uitstekende autorotatie landing gedemonstreerd.",
+    employeeCommissionPaid: true,
+    taxPaid: true
+  },
+  {
+    id: "lic-002",
+    citizenName: "Sanne Keizer",
+    citizenId: "CID-18304",
+    licenseType: "small-plane",
+    issuedBy: "Ryan Peterson",
+    issueDate: "2026-05-18",
+    remarks: "Perfecte radio-procedures getoond in dichte bewolking.",
+    employeeCommissionPaid: false,
+    taxPaid: false
+  },
+  {
+    id: "lic-003",
+    citizenName: "Daan van Dijk",
+    citizenId: "CID-92041",
+    licenseType: "large-plane",
+    issuedBy: "Henk van der Meer",
+    issueDate: "2026-05-27",
+    remarks: "Voldoet ruim aan de IFR (Instrument Flight Rules) standaarden.",
+    employeeCommissionPaid: false,
+    taxPaid: false
+  }
+];
 
-export const DEFAULT_INVENTORY = [];
+export const DEFAULT_INVENTORY: AircraftInventory[] = [
+  {
+    aircraftId: "heli-r44",
+    stockCount: 3,
+    status: "Op voorraad",
+    isVisible: true
+  },
+  {
+    aircraftId: "plane-c172",
+    stockCount: 5,
+    status: "Op voorraad",
+    isVisible: true
+  },
+  {
+    aircraftId: "plane-c560",
+    stockCount: 2,
+    status: "Op voorraad",
+    isVisible: true
+  }
+];
 

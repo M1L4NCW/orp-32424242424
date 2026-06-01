@@ -195,6 +195,29 @@ export default function App() {
               });
               setIssuedLicenses(localLics);
               return; // wait for subsequent intervals to catch up
+            } else if (serverLics.length === 0 && localLics.length === 0) {
+              console.log("Both server and client database are brand new or empty, seeding standard default flying school dataset...");
+              const initialData = {
+                issuedLicenses: DEFAULT_ISSUED_LICENSES,
+                inventory: DEFAULT_INVENTORY,
+                aircraftList: AIRCRAFT_LIST,
+                announcement: "Welkom bij de vernieuwde directie-omgeving van Vliegschool Oranjestad! De vliegveld database is succesvol gezeed met test-brevetten en vlootvoorraad.",
+                googleConnectionType: "webapp" as const,
+                sheetsWebAppUrl: "",
+                savedSpreadsheetId: "",
+                financialConfig: DEFAULT_FINANCIAL_CONFIG
+              };
+              saveSharedPortalData(initialData);
+              setIssuedLicenses(DEFAULT_ISSUED_LICENSES);
+              setInventory(DEFAULT_INVENTORY);
+              setAircraftList(AIRCRAFT_LIST);
+              setAnnouncement(initialData.announcement);
+              setFinancialConfig(DEFAULT_FINANCIAL_CONFIG);
+              localStorage.setItem(LICENSES_KEY, JSON.stringify(DEFAULT_ISSUED_LICENSES));
+              localStorage.setItem(INVENTORY_KEY, JSON.stringify(DEFAULT_INVENTORY));
+              localStorage.setItem(AIRCRAFT_LIST_KEY, JSON.stringify(AIRCRAFT_LIST));
+              localStorage.setItem("@luchtvaart_oranjestad_financial_config", JSON.stringify(DEFAULT_FINANCIAL_CONFIG));
+              return;
             }
           }
 
