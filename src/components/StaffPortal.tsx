@@ -216,6 +216,20 @@ export default function StaffPortal({
   const [editEmployeePaid, setEditEmployeePaid] = React.useState(false);
   const [editTaxPaid, setEditTaxPaid] = React.useState(false);
 
+  // Custom tax countdown customization states
+  const [isEditingTaxDueDate, setIsEditingTaxDueDate] = React.useState(false);
+  const [customTaxDueDateInput, setCustomTaxDueDateInput] = React.useState("");
+
+  const formatTimestampForInput = (timestamp: number) => {
+    const d = new Date(timestamp);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const handleOpenEditModal = (lic: IssuedLicense) => {
     setEditingLic(lic);
     setEditCitizenName(lic.citizenName);
@@ -1746,54 +1760,77 @@ export default function StaffPortal({
             }
           };
 
-          // Aggregate metrics across ALL issued licenses
-          const totals = issuedLicenses.reduce((acc, lic) => {
+          // Aggregate metrics across ALL issued licenses, calculating taxes based on the cumulative period-based profit rather than individual licenses
+          let paidGrossRevenue = 0;
+          let paidCommissions = 0;
+          let paidManagementFees = 0;
+          let paidPurchaseCosts = 0;
+          let numPaid = 0;
+
+          let unpaidGrossRevenue = 0;
+          let unpaidCommissions = 0;
+          let unpaidManagementFees = 0;
+          let unpaidPurchaseCosts = 0;
+          let numUnpaid = 0;
+
+          // Commissions paid to employees, independent of tax status
+          let employeePaidCommissionTotal = 0;
+          let employeeUnpaidCommissionTotal = 0;
+          let employeeTotalCommissionTotal = 0;
+
+          issuedLicenses.forEach(lic => {
             const details = getFinancialDetails(lic.licenseType);
-            
-            // Revenue
-            acc.grossRevenue += details.price;
-            
-            // Employee Commissions
-            const empPaid = lic.employeeCommissionPaid === true;
-            if (empPaid) {
-              acc.paidCommission += details.commission;
+
+            // Employee commission status
+            if (lic.employeeCommissionPaid === true) {
+              employeePaidCommissionTotal += details.commission;
             } else {
-              acc.unpaidCommission += details.commission;
+              employeeUnpaidCommissionTotal += details.commission;
             }
-            acc.totalCommission += details.commission;
+            employeeTotalCommissionTotal += details.commission;
 
-            // Taxes (7% of gross profit + standard 15k)
-            const taxSettle = lic.taxPaid === true;
-            const fullTaxForLic = details.standardTax + details.grossTax;
-            if (taxSettle) {
-              acc.paidTaxes += fullTaxForLic;
+            // Group by taxPaid status
+            if (lic.taxPaid === true) {
+              numPaid++;
+              paidGrossRevenue += details.price;
+              paidCommissions += details.commission;
+              paidManagementFees += details.managementFee;
+              paidPurchaseCosts += details.purchaseCost;
             } else {
-              acc.unpaidTaxes += fullTaxForLic;
-              acc.unpaidStandardTax += details.standardTax;
-              acc.unpaidGrossTax += details.grossTax;
+              numUnpaid++;
+              unpaidGrossRevenue += details.price;
+              unpaidCommissions += details.commission;
+              unpaidManagementFees += details.managementFee;
+              unpaidPurchaseCosts += details.purchaseCost;
             }
-            acc.totalTaxes += fullTaxForLic;
-
-            // Management distribution (2x 15k = 30k)
-            acc.managementFees += details.managementFee;
-
-            // Licensing material procurement costs (Inkoopkosten)
-            acc.purchaseCosts += details.purchaseCost;
-
-            return acc;
-          }, {
-            grossRevenue: 0,
-            paidCommission: 0,
-            unpaidCommission: 0,
-            totalCommission: 0,
-            paidTaxes: 0,
-            unpaidTaxes: 0,
-            unpaidStandardTax: 0,
-            unpaidGrossTax: 0,
-            totalTaxes: 0,
-            managementFees: 0,
-            purchaseCosts: 0
           });
+
+          // Calculate period-based taxes (7% of total period-based profit & a flat standard 15k contribution)
+          const unpaidProfitBeforeTax = Math.max(0, unpaidGrossRevenue - (unpaidCommissions + unpaidManagementFees + unpaidPurchaseCosts));
+          const unpaidGrossTax = Math.max(0, unpaidProfitBeforeTax * 0.07);
+          const unpaidStandardTax = numUnpaid > 0 ? 15000 : 0;
+          const unpaidTaxes = unpaidGrossTax + unpaidStandardTax;
+
+          const paidProfitBeforeTax = Math.max(0, paidGrossRevenue - (paidCommissions + paidManagementFees + paidPurchaseCosts));
+          const paidGrossTax = Math.max(0, paidProfitBeforeTax * 0.07);
+          const paidStandardTax = numPaid > 0 ? 15000 : 0;
+          const paidTaxes = paidGrossTax + paidStandardTax;
+
+          const totalTaxes = paidTaxes + unpaidTaxes;
+
+          const totals = {
+            grossRevenue: paidGrossRevenue + unpaidGrossRevenue,
+            paidCommission: employeePaidCommissionTotal,
+            unpaidCommission: employeeUnpaidCommissionTotal,
+            totalCommission: employeeTotalCommissionTotal,
+            paidTaxes: paidTaxes,
+            unpaidTaxes: unpaidTaxes,
+            unpaidStandardTax: unpaidStandardTax,
+            unpaidGrossTax: unpaidGrossTax,
+            totalTaxes: totalTaxes,
+            managementFees: paidManagementFees + unpaidManagementFees,
+            purchaseCosts: paidPurchaseCosts + unpaidPurchaseCosts
+          };
 
           const totalBusinessExpenses = totals.totalCommission + totals.totalTaxes + totals.managementFees + totals.purchaseCosts;
           // Winstpotje = Totaal Brutowinst - Alle kosten (Werknemers, Belastingen, Management & Inkoopkosten)
@@ -2004,7 +2041,7 @@ export default function StaffPortal({
                   </div>
                   <div className="pt-4 border-t border-slate-900">
                     <p className="text-[10px] font-sans text-slate-400 font-light block leading-relaxed mb-3">
-                      Alle netto winst na aftrek van inkoopkosten, belasting (7% + 15k), management fees en medewerker premies.
+                      Alle netto winst na aftrek van inkoopkosten, belasting (7% over totale winst + 15k vast), management fees en medewerker premies.
                     </p>
                     {(role === "owner" || role === "manager") && (
                       <button
@@ -2026,7 +2063,7 @@ export default function StaffPortal({
                       <span className="text-[10px] text-[#ea580c] uppercase tracking-widest font-bold font-sans bg-[#ea580c]/10 px-2.5 py-1 rounded-full border border-[#ea580c]/10">
                         Corporate Belastingen
                       </span>
-                      <span className="text-[10px] text-slate-400">7% + 15k standaard</span>
+                      <span className="text-[10px] text-slate-400">7% over winst + 15k vast</span>
                     </div>
                     
                     <div className="mt-4">
@@ -2039,9 +2076,121 @@ export default function StaffPortal({
 
                   <div className="pt-4 border-t border-slate-900/40">
                     <div className="flex items-center justify-between text-[10px] space-y-0.5 font-sans">
-                      <span className="text-slate-400 block font-light">Betalingstermijn (2 weken):</span>
+                      <span className="text-slate-400 block font-light">Aftelklok (Betalingstermijn):</span>
                       <span className="text-rose-450 font-bold block bg-rose-500/10 px-1.5 py-0.5 rounded font-mono">{timeLeftStr}</span>
                     </div>
+
+                    <div className="mt-2 text-[10px] flex items-center justify-between text-slate-400 font-sans">
+                      <span>Vervaldatum:</span>
+                      <strong className="text-slate-200 font-mono">
+                        {new Date(taxDueDate).toLocaleString("nl-NL", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </strong>
+                    </div>
+
+                    {(role === "owner" || role === "manager") && (
+                      <div className="mt-3 text-right">
+                        {!isEditingTaxDueDate ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomTaxDueDateInput(formatTimestampForInput(taxDueDate));
+                              setIsEditingTaxDueDate(true);
+                            }}
+                            className="text-[#ea580c] hover:text-orange-400 font-sans text-[10px] font-bold underline cursor-pointer"
+                          >
+                            Datum zelf instellen
+                          </button>
+                        ) : (
+                          <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2 mt-2 text-left">
+                            <label className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">
+                              Nieuwe vervaldatum:
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={customTaxDueDateInput}
+                              onChange={(e) => setCustomTaxDueDateInput(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 font-mono outline-none focus:border-[#ea580c]"
+                            />
+                            
+                            {/* Fast-click Presets */}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const target = Date.now() + 14 * 24 * 60 * 60 * 1000;
+                                  setCustomTaxDueDateInput(formatTimestampForInput(target));
+                                }}
+                                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-sans text-[9px] px-2 py-1 rounded cursor-pointer transition-colors"
+                              >
+                                +2 Weken
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const target = Date.now() + 7 * 24 * 60 * 60 * 1000;
+                                  setCustomTaxDueDateInput(formatTimestampForInput(target));
+                                }}
+                                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-sans text-[9px] px-2 py-1 rounded cursor-pointer transition-colors"
+                              >
+                                +1 Week
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const target = Date.now() + 3 * 24 * 60 * 60 * 1000;
+                                  setCustomTaxDueDateInput(formatTimestampForInput(target));
+                                }}
+                                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-sans text-[9px] px-2 py-1 rounded cursor-pointer transition-colors"
+                              >
+                                +3 Dagen
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const target = Date.now() + 24 * 60 * 60 * 1000;
+                                  setCustomTaxDueDateInput(formatTimestampForInput(target));
+                                }}
+                                className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-sans text-[9px] px-2 py-1 rounded cursor-pointer transition-colors"
+                              >
+                                +24 Uur
+                              </button>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-1 border-t border-slate-850/60">
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingTaxDueDate(false)}
+                                className="bg-slate-950 hover:bg-slate-850 text-slate-400 font-sans text-[9px] font-bold px-2.5 py-1 rounded cursor-pointer"
+                              >
+                                Annuleren
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (customTaxDueDateInput) {
+                                    const parsed = new Date(customTaxDueDateInput).getTime();
+                                    if (!isNaN(parsed)) {
+                                      setTaxDueDate(parsed);
+                                      localStorage.setItem("@luchtvaart_oranjestad_tax_due_date", parsed.toString());
+                                      setIsEditingTaxDueDate(false);
+                                    }
+                                  }
+                                }}
+                                className="bg-[#ea580c] hover:bg-orange-600 text-slate-950 font-sans font-bold text-[9px] px-3 py-1 rounded cursor-pointer transition-colors"
+                              >
+                                Opslaan
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {(role === "owner" || role === "manager") && totals.unpaidTaxes > 0 ? (
                       <button
                         onClick={handlePayTaxesSubmit}
@@ -3499,11 +3648,11 @@ export default function StaffPortal({
                   </div>
                   <div className="border-t border-slate-850 my-1 pt-1 opacity-60" />
                   <div className="flex justify-between text-[11px] text-slate-400">
-                    <span>- 7% Brutowinst belasting:</span>
+                    <span>- 7% Belasting op totale winst:</span>
                     <span>€{taxConfirmationData.unpaidGrossTax.toLocaleString("nl-NL")}</span>
                   </div>
                   <div className="flex justify-between text-[11px] text-slate-400">
-                    <span>- Vast brevet-tarief (15k p.p.):</span>
+                    <span>- Vast periodiek tarief (15k):</span>
                     <span>€{taxConfirmationData.unpaidStandardTax.toLocaleString("nl-NL")}</span>
                   </div>
                 </div>
