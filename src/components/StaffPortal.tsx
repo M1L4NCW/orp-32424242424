@@ -215,6 +215,7 @@ export default function StaffPortal({
   const [editRemarks, setEditRemarks] = React.useState("");
   const [editEmployeePaid, setEditEmployeePaid] = React.useState(false);
   const [editTaxPaid, setEditTaxPaid] = React.useState(false);
+  const [editManagementFeePaid, setEditManagementFeePaid] = React.useState(false);
 
   // Custom tax countdown customization states
   const [isEditingTaxDueDate, setIsEditingTaxDueDate] = React.useState(false);
@@ -239,6 +240,7 @@ export default function StaffPortal({
     setEditRemarks(lic.remarks || "");
     setEditEmployeePaid(!!lic.employeeCommissionPaid);
     setEditTaxPaid(!!lic.taxPaid);
+    setEditManagementFeePaid(!!lic.managementFeePaid);
 
     const matchedStaff = staffAccounts.find(s => s.fullname === lic.issuedBy);
     if (matchedStaff) {
@@ -286,7 +288,8 @@ export default function StaffPortal({
       issueDate: editIssueDate.trim(),
       remarks: editRemarks.trim() || undefined,
       employeeCommissionPaid: editEmployeePaid,
-      taxPaid: editTaxPaid
+      taxPaid: editTaxPaid,
+      managementFeePaid: editManagementFeePaid
     };
 
     onUpdateLicense(updated);
@@ -1096,7 +1099,8 @@ export default function StaffPortal({
       issueDate: new Date().toLocaleDateString("nl-NL"),
       remarks: newRemarks.trim() || undefined,
       employeeCommissionPaid: false,
-      taxPaid: false
+      taxPaid: false,
+      managementFeePaid: false
     };
 
     onAddLicense(newLic);
@@ -1444,6 +1448,7 @@ export default function StaffPortal({
                         <th className="py-3 px-4">Datum</th>
                         <th className="py-3 px-4">Commissie status</th>
                         <th className="py-3 px-4 font-bold text-slate-500">Belasting afgedragen</th>
+                        <th className="py-3 px-4 font-bold text-slate-500">Mgt Fee (Mike & Ron)</th>
                         <th className="py-3 px-4 text-right">Acties</th>
                       </tr>
                     </thead>
@@ -1482,6 +1487,15 @@ export default function StaffPortal({
                                 : "bg-rose-500/20 text-rose-450 border border-rose-500/30"
                             }`}>
                               {lic.taxPaid ? "Afgedragen" : "Openstaand"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded text-[8.5px] uppercase font-bold ${
+                              lic.managementFeePaid 
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25" 
+                                : "bg-amber-500/15 text-amber-500 border border-amber-500/20 animate-pulse"
+                            }`}>
+                              {lic.managementFeePaid ? "Voldaan" : "Openstaand"}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right">
@@ -1778,6 +1792,10 @@ export default function StaffPortal({
           let employeeUnpaidCommissionTotal = 0;
           let employeeTotalCommissionTotal = 0;
 
+          // Management fees paid to Ron and Mike, independent of tax status
+          let paidManagementFeesTotal = 0;
+          let unpaidManagementFeesTotal = 0;
+
           issuedLicenses.forEach(lic => {
             const details = getFinancialDetails(lic.licenseType);
 
@@ -1788,6 +1806,13 @@ export default function StaffPortal({
               employeeUnpaidCommissionTotal += details.commission;
             }
             employeeTotalCommissionTotal += details.commission;
+
+            // Management fee status
+            if (lic.managementFeePaid === true) {
+              paidManagementFeesTotal += details.managementFee;
+            } else {
+              unpaidManagementFeesTotal += details.managementFee;
+            }
 
             // Group by taxPaid status
             if (lic.taxPaid === true) {
@@ -1828,7 +1853,9 @@ export default function StaffPortal({
             unpaidStandardTax: unpaidStandardTax,
             unpaidGrossTax: unpaidGrossTax,
             totalTaxes: totalTaxes,
-            managementFees: paidManagementFees + unpaidManagementFees,
+            managementFees: paidManagementFeesTotal + unpaidManagementFeesTotal,
+            paidManagementFees: paidManagementFeesTotal,
+            unpaidManagementFees: unpaidManagementFeesTotal,
             purchaseCosts: paidPurchaseCosts + unpaidPurchaseCosts
           };
 
@@ -1885,6 +1912,52 @@ export default function StaffPortal({
               ...lic,
               employeeCommissionPaid: nextPaidState
             });
+          };
+
+          // Toggle management fee payout status in state for specific license
+          const handleToggleManagementPaid = (lic: IssuedLicense) => {
+            if (role !== "owner" && role !== "manager") {
+              setPortalAlertMessage("Alleen de directie (Eigenaar / Manager) mag management fees fiatteren!");
+              return;
+            }
+            const nextPaidState = !lic.managementFeePaid;
+            onUpdateLicense({
+              ...lic,
+              managementFeePaid: nextPaidState
+            });
+          };
+
+          // Pay director management fees (marks managementFeePaid as true for all open management fees)
+          const handlePayManagementFeesSubmit = () => {
+            if (role !== "owner" && role !== "manager") {
+              setPortalAlertMessage("Alleen de directie mag de management fees overboeken!");
+              return;
+            }
+            if (totals.unpaidManagementFees <= 0) {
+              setPortalAlertMessage("Er zijn geen openstaande management fees om over te boeken!");
+              return;
+            }
+
+            const executeManagementPayment = () => {
+              // Set managementFeePaid = true for all licenses and trigger update
+              issuedLicenses.forEach(lic => {
+                if (!lic.managementFeePaid) {
+                  onUpdateLicense({
+                    ...lic,
+                    managementFeePaid: true
+                  });
+                }
+              });
+
+              setPortalAlertMessage("De openstaande management fees zijn met succes overgeboekt naar Mike (€" + ((totals.unpaidManagementFees / 2).toLocaleString("nl-NL")) + ") en Ron (€" + ((totals.unpaidManagementFees / 2).toLocaleString("nl-NL")) + ")!");
+            };
+
+            const confirmPayment = window.confirm(
+              `Weet u zeker dat u de openstaande management fees van €${totals.unpaidManagementFees.toLocaleString("nl-NL")} wilt uitbetalen aan de directie? Dit splitst in €${(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")} voor Mike en €${(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")} voor Ron. Dit reset de openstaande teller naar €0.`
+            );
+            if (confirmPayment) {
+              executeManagementPayment();
+            }
           };
 
           // Pay corporate taxes (resets countdown and clears taxPaid to true)
@@ -2024,7 +2097,7 @@ export default function StaffPortal({
             <div className="space-y-8 animate-fade-in font-mono text-xs text-slate-300">
               
               {/* Row 1: Big KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 
                 {/* Winstpotje Glowing Bank Vault */}
                 <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-amber-500/20 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between shadow-2xl min-h-[180px]">
@@ -2201,6 +2274,54 @@ export default function StaffPortal({
                     ) : (
                       <div className="text-center text-[10px] text-emerald-400 mt-3 border border-emerald-500/10 bg-emerald-500/5 p-1 rounded font-bold uppercase">
                         ✓ Belastingen voldaan
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Management Fees (Mike & Ron) Card */}
+                <div className="bg-slate-950 border border-slate-850 rounded-3xl p-6 flex flex-col justify-between min-h-[180px]">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-amber-500 uppercase tracking-widest font-bold font-sans bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/10">
+                        Management Fees
+                      </span>
+                      <span className="text-[10px] text-slate-400">15k Mike + 15k Ron p.b.</span>
+                    </div>
+                    
+                    <div className="mt-4">
+                      <div className="text-slate-500 text-[10px] uppercase">OPENSTAANDE DIRECTIE FEES</div>
+                      <h4 className="text-2xl font-bold text-amber-500 mt-1">
+                        €{totals.unpaidManagementFees.toLocaleString("nl-NL")}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-900/40 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-450">
+                      <span>Mike (Openstaand):</span>
+                      <strong className="text-slate-200">
+                        €{(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")}
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-450">
+                      <span>Ron (Openstaand):</span>
+                      <strong className="text-slate-200">
+                        €{(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")}
+                      </strong>
+                    </div>
+
+                    {(role === "owner" || role === "manager") && totals.unpaidManagementFees > 0 ? (
+                      <button
+                        onClick={handlePayManagementFeesSubmit}
+                        type="button"
+                        className="w-full mt-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 font-bold font-mono tracking-wider text-[10px] uppercase rounded-lg py-2 cursor-pointer shadow-lg shadow-amber-500/15"
+                      >
+                        Voldoe Directie Fees
+                      </button>
+                    ) : (
+                      <div className="text-center text-[10px] text-emerald-400 mt-2 border border-emerald-500/10 bg-emerald-500/5 p-1 rounded font-bold uppercase">
+                        ✓ Fees overgeboekt
                       </div>
                     )}
                   </div>
@@ -3865,6 +3986,19 @@ export default function StaffPortal({
                       type="checkbox"
                       checked={editTaxPaid}
                       onChange={(e) => setEditTaxPaid(e.target.checked)}
+                      className="w-4.5 h-4.5 rounded text-[#ea580c] focus:ring-[#ea580c] border-slate-850 bg-slate-950 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="bg-slate-900/60 border border-slate-850 p-3 rounded-2xl flex items-center justify-between col-span-1 md:col-span-2">
+                    <div>
+                      <span className="font-semibold text-white block text-[11px]">Management Fee voldaan</span>
+                      <span className="text-[9px] text-slate-500">Zijn de Directie fees (€15k Mike + €15k Ron) voldaan?</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={editManagementFeePaid}
+                      onChange={(e) => setEditManagementFeePaid(e.target.checked)}
                       className="w-4.5 h-4.5 rounded text-[#ea580c] focus:ring-[#ea580c] border-slate-850 bg-slate-950 cursor-pointer"
                     />
                   </div>

@@ -157,7 +157,8 @@ export const DEFAULT_ISSUED_LICENSES: IssuedLicense[] = [
     issueDate: "2026-05-12",
     remarks: "Uitstekende autorotatie landing gedemonstreerd.",
     employeeCommissionPaid: true,
-    taxPaid: true
+    taxPaid: true,
+    managementFeePaid: true
   },
   {
     id: "lic-002",
@@ -168,7 +169,8 @@ export const DEFAULT_ISSUED_LICENSES: IssuedLicense[] = [
     issueDate: "2026-05-18",
     remarks: "Perfecte radio-procedures getoond in dichte bewolking.",
     employeeCommissionPaid: false,
-    taxPaid: false
+    taxPaid: false,
+    managementFeePaid: false
   },
   {
     id: "lic-003",
@@ -179,7 +181,8 @@ export const DEFAULT_ISSUED_LICENSES: IssuedLicense[] = [
     issueDate: "2026-05-27",
     remarks: "Voldoet ruim aan de IFR (Instrument Flight Rules) standaarden.",
     employeeCommissionPaid: false,
-    taxPaid: false
+    taxPaid: false,
+    managementFeePaid: false
   }
 ];
 

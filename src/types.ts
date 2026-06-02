@@ -102,6 +102,7 @@ export interface IssuedLicense {
   remarks?: string;
   employeeCommissionPaid?: boolean;
   taxPaid?: boolean;
+  managementFeePaid?: boolean;
 }
 
 export interface AircraftInventory {
