@@ -41,7 +41,7 @@ export interface StaffUser {
   id: string;
   username: string;
   passwordHash: string; // clear text password for simple storage
-  role: "owner" | "manager" | "medewerker";
+  role: "owner" | "manager" | "medewerker" | "klu";
   fullname: string;
   discordId?: string; // stored discord ID
 }

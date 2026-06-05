@@ -673,32 +673,53 @@ app.post("/api/discord/exchange", async (req, res) => {
       });
     }
 
-    // Haal serverlidmaatschap en bijbehorende rollen op via de Bot client
-    const memberResponse = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId}`, {
-      headers: {
-        Authorization: `Bot ${botToken}`,
-      },
-    });
+    // Haal serverlidmaatschap en bijbehorende rollen van de hofd-guild op via de Bot client
+    let memberRoles: string[] = [];
+    let belongsToMainGuild = false;
+    try {
+      const memberResponse = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId}`, {
+        headers: {
+          Authorization: `Bot ${botToken}`,
+        },
+      });
+      if (memberResponse.ok) {
+        belongsToMainGuild = true;
+        const memberData = (await memberResponse.json()) as any;
+        memberRoles = memberData.roles as string[];
+      }
+    } catch (e) {
+      console.error("Fout bij ophalen van hoofdguild lidmaatschap:", e);
+    }
 
-    if (memberResponse.status === 404) {
+    // Haal serverlidmaatschap en bijbehorende rollen van de KLu-guild op via de Bot client
+    let kluRoles: string[] = [];
+    let belongsToKluGuild = false;
+    const kluGuildId = "1511787593891840141";
+    const kluRoleId = "1511787593891840146";
+
+    try {
+      const kluResponse = await fetch(`https://discord.com/api/guilds/${kluGuildId}/members/${userId}`, {
+        headers: {
+          Authorization: `Bot ${botToken}`,
+        },
+      });
+      if (kluResponse.ok) {
+        belongsToKluGuild = true;
+        const kluData = (await kluResponse.json()) as any;
+        kluRoles = kluData.roles as string[];
+      }
+    } catch (e) {
+      console.error("Fout bij ophalen van KLu-guild lidmaatschap:", e);
+    }
+
+    if (!belongsToMainGuild && !belongsToKluGuild) {
       return res.status(403).json({ 
-        error: `Inloggen geannuleerd: U bent geen lid van onze Discord server. Word eerst lid om toegang te krijgen.` 
+        error: `Inloggen geannuleerd: U bent geen lid van onze Discord of KLu server. Word eerst lid om toegang te krijgen.` 
       });
     }
-
-    if (!memberResponse.ok) {
-      const errText = await memberResponse.text();
-      console.error("Lidmaatschap controle via Bot mislukt:", errText);
-      return res.status(500).json({ 
-        error: "Kan uw lidmaatschap of rollen op de server niet verifiëren. Controleer de Discord Bot status en rechten." 
-      });
-    }
-
-    const memberData = (await memberResponse.json()) as any;
-    const memberRoles = memberData.roles as string[];
 
     // 4. Bepaal rol-niveau op basis van Discord rollen
-    let appRole: "owner" | "manager" | "medewerker" | null = null;
+    let appRole: "owner" | "manager" | "medewerker" | "klu" | null = null;
 
     if (roleOwnerId && memberRoles.includes(roleOwnerId)) {
       appRole = "owner";
@@ -706,12 +727,14 @@ app.post("/api/discord/exchange", async (req, res) => {
       appRole = "manager";
     } else if (roleMedewerkerId && memberRoles.includes(roleMedewerkerId)) {
       appRole = "medewerker";
+    } else if (kluRoles.includes(kluRoleId)) {
+      appRole = "klu";
     }
 
     if (!appRole) {
       return res.status(403).json({ 
         error: "Mislukt om in te loggen: Geen geautoriseerde Discord rol gevonden.",
-        details: `U heeft niet de benodigde Discord rollen om toegang te krijgen tot het portaal. Uw Discord rollen-lijst: [${memberRoles.join(", ")}]`
+        details: `U heeft niet de benodigde Discord of KLu rollen om toegang te krijgen tot het portaal. (Hoofd server rollen: [${memberRoles.join(", ")}], KLu server rollen: [${kluRoles.join(", ")}])`
       });
     }
 

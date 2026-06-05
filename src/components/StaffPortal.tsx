@@ -2,7 +2,7 @@ import React from "react";
 import { 
   ShieldCheck, FileSpreadsheet, PlusCircle, Trash2, Pencil,
   Settings, UserCheck, HelpCircle, AlertCircle, FileText, CheckCircle, Plus, Image, Users, HelpCircle as HelpIcon,
-  Coins, TrendingUp, Percent, Award, Calendar, Megaphone
+  Coins, TrendingUp, Percent, Award, Calendar, Megaphone, Shield, Plane, Navigation
 } from "lucide-react";
 import { IssuedLicense, AircraftInventory, Aircraft, StaffUser, FinancialConfig } from "../types";
 import { LICENSES } from "../data";
@@ -361,7 +361,7 @@ export default function StaffPortal({
   const [loggedInUser, setLoggedInUser] = React.useState<StaffUser | null>(null);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [role, setRole] = React.useState<"owner" | "manager" | "medewerker" | null>(null);
+  const [role, setRole] = React.useState<"owner" | "manager" | "medewerker" | "klu" | null>(null);
   const [fullname, setFullname] = React.useState("");
   const [loginError, setLoginError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
@@ -682,7 +682,7 @@ export default function StaffPortal({
   };
 
   // Active view in portal
-  const [activeTab, setActiveTab] = React.useState<"registry" | "issue" | "administration" | "users" | "fleet">("registry");
+  const [activeTab, setActiveTab] = React.useState<"registry" | "issue" | "administration" | "users" | "fleet" | "klu">("registry");
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -928,6 +928,8 @@ export default function StaffPortal({
 
         if (data.user.role === "owner" || data.user.role === "manager") {
           setActiveTab("administration");
+        } else if (data.user.role === "klu") {
+          setActiveTab("klu");
         } else {
           setActiveTab("issue");
         }
@@ -1253,12 +1255,12 @@ export default function StaffPortal({
         <div className="max-w-md mx-auto">
           {/* Logo and Greeting */}
           <div className="text-center mb-8">
-            <span className="text-[#ea580c] font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-[#ea580c]/10 rounded-full border border-[#ea580c]/10">
-              Uitsluitend voor Bevoegde Medewerkers
+            <span className="text-emerald-400 font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10">
+              Uitsluitend voor Medewerkers & KLu Militairen
             </span>
-            <h1 className="font-display font-bold text-3xl mt-4 text-white">Medewerkers Login</h1>
-            <p className="text-xs text-slate-400 mt-2 font-light leading-relaxed">
-              Log in op het stadsportaal van Luchtvaart Centrum Oranjestad. Maak vliegbewijzen aan en controleer de vloot.
+            <h1 className="font-display font-bold text-3xl mt-4 text-white">Rijks- & Stadsportaal</h1>
+            <p className="text-xs text-slate-400 mt-2 font-light leading-relaxed font-sans">
+              Log in op het stadsportaal van Luchtvaart Centrum of het Rijksportaal van de Koninklijke Luchtmacht (KLu) voor bevoegdhedencontrole.
             </p>
           </div>
 
@@ -1330,29 +1332,33 @@ export default function StaffPortal({
         {/* Tab Navigation inside staff pane */}
         <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-900 pb-4">
           
-          <button
-            onClick={() => setActiveTab("registry")}
-            className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === "registry"
-                ? "bg-slate-950 text-white border border-[#ea580c]"
-                : "bg-transparent text-slate-400 hover:text-white"
-            }`}
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span>Klanten & Piloten Register</span>
-          </button>
+          {(role === "owner" || role === "manager" || role === "medewerker") && (
+            <button
+              onClick={() => setActiveTab("registry")}
+              className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "registry"
+                  ? "bg-slate-950 text-white border border-[#ea580c]"
+                  : "bg-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Klanten & Piloten Register</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab("issue")}
-            className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === "issue"
-                ? "bg-slate-950 text-white border border-[#ea580c]"
-                : "bg-transparent text-slate-400 hover:text-white"
-            }`}
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Diploma Maken</span>
-          </button>
+          {(role === "owner" || role === "manager" || role === "medewerker") && (
+            <button
+              onClick={() => setActiveTab("issue")}
+              className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "issue"
+                  ? "bg-slate-950 text-white border border-[#ea580c]"
+                  : "bg-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Diploma Maken</span>
+            </button>
+          )}
 
           {(role === "owner" || role === "manager") && (
             <button
@@ -1393,6 +1399,20 @@ export default function StaffPortal({
             >
               <Users className="h-4 w-4" />
               <span>Personeel & Accounts ({staffAccounts.length})</span>
+            </button>
+          )}
+
+          {(role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (
+            <button
+              onClick={() => setActiveTab("klu")}
+              className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "klu"
+                  ? "bg-slate-950 text-emerald-400 border border-emerald-500/50 shadow-md shadow-emerald-500/10"
+                  : "bg-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <Shield className="h-4 w-4 text-emerald-400 animate-pulse" />
+              <span className="font-semibold text-emerald-300">KLu Rijksportaal</span>
             </button>
           )}
         </div>
@@ -3699,6 +3719,373 @@ export default function StaffPortal({
             </div>
           </div>
         )}
+
+        {/* KLU PORTAL TAB AREA */}
+        {activeTab === "klu" && (role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (() => {
+          // Local states inside IIFE for clean scope
+          const [kluSearch, setKluSearch] = React.useState("");
+          const [kluFilter, setKluFilter] = React.useState<"all" | "helicopter" | "small-plane" | "large-plane">("all");
+          const [activeHandbookTab, setActiveHandbookTab] = React.useState<"missions" | "atc" | "ranks" | "fleet">("missions");
+
+          const filteredKluLicenses = issuedLicenses.filter(lic => {
+            const query = kluSearch.toLowerCase().trim();
+            const matchesSearch = 
+              lic.citizenName.toLowerCase().includes(query) ||
+              lic.citizenId.toLowerCase().includes(query) ||
+              lic.issuedBy.toLowerCase().includes(query);
+            
+            const matchesType = kluFilter === "all" || lic.licenseType === kluFilter;
+            return matchesSearch && matchesType;
+          });
+
+          return (
+            <div className="space-y-8 animate-fade-in font-mono text-xs text-slate-300">
+              {/* Glowing Hero Section */}
+              <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-[#022c22]/40 border-2 border-emerald-500/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+                {/* Glowing target effect */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                
+                <div className="space-y-3 max-w-2xl text-left font-sans">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-emerald-500/30">
+                      Rijksportaal Actief
+                    </span>
+                    <span className="px-2.5 py-1 bg-amber-500/15 text-amber-500 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-amber-500/25 animate-pulse">
+                      DEFCON 4 // NORMAL OPS
+                    </span>
+                  </div>
+                  <h2 className="font-display font-black text-2xl md:text-3xl text-white uppercase tracking-tight flex items-center gap-3">
+                    <Shield className="h-7 w-7 text-emerald-400 shrink-0" />
+                    Koninklijke Luchtmacht
+                  </h2>
+                  <p className="text-xs text-slate-400 font-light leading-relaxed max-w-xl">
+                    Welkom bij het gecertificeerde Rijksportaal van het Militair Luchtvaart Commando (MLC). Hier worden militaire bevoegdheden beheerd, vlieguren bijgehouden, en tactische procedures gemonitord.
+                  </p>
+                </div>
+
+                <div className="shrink-0 flex flex-col items-center md:items-end gap-1.5 bg-slate-950/80 border border-slate-800 p-4 rounded-2xl min-w-[200px] text-center md:text-right font-sans">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold font-mono">Ingelogde Rijksambtenaar</div>
+                  <div className="text-white font-bold text-sm">{fullname}</div>
+                  <div className="text-[9px] text-[#5865F2] font-semibold uppercase flex items-center gap-1 mt-1 justify-center md:justify-end font-mono">
+                    <span>Inlog via Discord</span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  </div>
+                  <div className="text-[10px] text-emerald-400 font-bold border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 rounded uppercase mt-2 font-mono">
+                    Rol: {role === "klu" ? "KLu Piloot / Officier" : `LCO Directie (${role})`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid 2 Columns: Brevetten & Handbook */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* Column LEFT: Brevetten Register (7 columns) */}
+                <div className="lg:col-span-7 bg-slate-950 border border-slate-850 rounded-3xl p-6 shadow-xl space-y-6 text-left">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-900 pb-4">
+                    <div>
+                      <h3 className="font-display font-semibold text-base text-white flex items-center gap-2">
+                        <FileSpreadsheet className="h-4.5 w-4.5 text-emerald-400" />
+                        Militaire & Civiele Brevettenlijst
+                      </h3>
+                      <p className="text-[11px] text-slate-400 font-sans font-light mt-0.5">Overzicht van actieve piloten in het LCO & KLu Rijksregister.</p>
+                    </div>
+                  </div>
+
+                  {/* Filter and Search controls */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div className="md:col-span-7">
+                      <input
+                        type="text"
+                        placeholder="Zoek piloot op naam, ID of instructeur..."
+                        value={kluSearch}
+                        onChange={(e) => setKluSearch(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-emerald-500 outline-none text-slate-200 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="md:col-span-5">
+                      <select
+                        value={kluFilter}
+                        onChange={(e) => setKluFilter(e.target.value as any)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 focus:border-emerald-500 outline-none text-slate-200 text-xs font-mono cursor-pointer"
+                      >
+                        <option value="all">Alle Bevoegdheden</option>
+                        <option value="helicopter">Helikopter Brevetten</option>
+                        <option value="small-plane">Kleine Vliegtuigen (Tactisch)</option>
+                        <option value="large-plane">Grote Vliegtuigen (Transport)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* High Quality Pilot List */}
+                  {filteredKluLicenses.length === 0 ? (
+                    <div className="p-8 border border-dashed border-slate-850 bg-slate-950/40 rounded-2xl text-center space-y-2">
+                      <AlertCircle className="h-8 w-8 text-slate-650 mx-auto" />
+                      <p className="text-slate-500 text-xs">Geen piloten of brevetten gevonden...</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto border border-slate-900/60 rounded-2xl">
+                      <table className="w-full text-left border-collapse font-sans text-xs">
+                        <thead>
+                          <tr className="bg-slate-900 border-b border-slate-850 font-mono text-[9px] uppercase tracking-wider text-slate-450">
+                            <th className="py-3 px-4 md:w-1/3">Piloot & BSN/CID</th>
+                            <th className="py-3 px-4">Behaald Brevet</th>
+                            <th className="py-3 px-4 font-bold text-slate-500">Militair Equivalent</th>
+                            <th className="py-3 px-4 text-right">Datum</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-900/50">
+                          {filteredKluLicenses.map((lic) => {
+                            let milEquivalent = "SAR Reserve Pilot";
+                            let iconColor = "text-amber-500";
+                            
+                            if (lic.licenseType === "helicopter") {
+                              milEquivalent = "NH90 Copter Command";
+                              iconColor = "text-teal-400";
+                            } else if (lic.licenseType === "large-plane") {
+                              milEquivalent = "C-130 Hercules Commander";
+                              iconColor = "text-sky-400";
+                            } else {
+                              milEquivalent = "F-16 Combat Interceptor";
+                              iconColor = "text-rose-400";
+                            }
+
+                            return (
+                              <tr key={lic.id} className="hover:bg-slate-900/40 transition-colors">
+                                <td className="py-3.5 px-4">
+                                  <div className="font-semibold text-white font-sans">{lic.citizenName}</div>
+                                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">{lic.citizenId}</div>
+                                </td>
+                                <td className="py-3.5 px-4 font-mono text-xs">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`h-1.5 w-1.5 rounded-full ${
+                                      lic.licenseType === "helicopter" ? "bg-teal-400" : lic.licenseType === "large-plane" ? "bg-sky-400" : "bg-rose-400"
+                                    }`}></span>
+                                    <span className="text-slate-200">{getLicenseTypeLabel(lic.licenseType)}</span>
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-4 font-mono">
+                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold border border-emerald-500/20 bg-emerald-500/5 ${iconColor}`}>
+                                    ⚡ {milEquivalent}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 font-mono text-[10px] text-slate-500 text-right">
+                                  {lic.issueDate}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Direct connection banner */}
+                  <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1 text-center md:text-left">
+                      <h4 className="font-semibold text-white text-xs font-sans">Behaalde brevetten omruilen voor KLu-status?</h4>
+                      <p className="text-[10px] text-slate-400 font-sans">Nieuwe rekruten worden getoetst door MLC instructeurs en geaccrediteerd via onze Discord.</p>
+                    </div>
+                    <a
+                      href="https://discord.gg/FACgeTSrAR"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-[#ea580c] hover:bg-[#ea580c]/90 text-slate-950 font-bold font-mono tracking-wide text-[10px] uppercase rounded-xl transition-all shadow-lg shadow-[#ea580c]/10 cursor-pointer text-center whitespace-nowrap"
+                    >
+                      Militair Verzoek Indienen
+                    </a>
+                  </div>
+                </div>
+
+                {/* Column RIGHT: Interactive Operational Handbook (5 columns) */}
+                <div className="lg:col-span-5 bg-slate-950 border border-slate-850 rounded-3xl p-6 shadow-xl space-y-6 text-left">
+                  <div>
+                    <h3 className="font-display font-semibold text-base text-white flex items-center gap-2">
+                      <Shield className="h-4.5 w-4.5 text-amber-500" />
+                      KLu Handboek & Protocollen
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-sans font-light mt-0.5">Officiële instructies en operatie-protocollen van de Luchtmacht.</p>
+                  </div>
+
+                  {/* Handbook tabs */}
+                  <div className="grid grid-cols-4 gap-1.5 border-b border-slate-900 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => setActiveHandbookTab("missions")}
+                      className={`py-1.5 text-[9px] uppercase font-bold rounded-lg tracking-wider text-center cursor-pointer transition-all ${
+                        activeHandbookTab === "missions"
+                          ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      Missies
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveHandbookTab("atc")}
+                      className={`py-1.5 text-[9px] uppercase font-bold rounded-lg tracking-wider text-center cursor-pointer transition-all ${
+                        activeHandbookTab === "atc"
+                          ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      ATC & RT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveHandbookTab("ranks")}
+                      className={`py-1.5 text-[9px] uppercase font-bold rounded-lg tracking-wider text-center cursor-pointer transition-all ${
+                        activeHandbookTab === "ranks"
+                          ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      Rangen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveHandbookTab("fleet")}
+                      className={`py-1.5 text-[9px] uppercase font-bold rounded-lg tracking-wider text-center cursor-pointer transition-all ${
+                        activeHandbookTab === "fleet"
+                          ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      KLu Vloot
+                    </button>
+                  </div>
+
+                  {/* Handbook tab contents */}
+                  <div className="space-y-4 font-sans text-xs leading-relaxed text-slate-300 min-h-[300px]">
+                    
+                    {activeHandbookTab === "missions" && (
+                      <div className="space-y-3 animate-fade-in font-sans text-[11.5px] leading-relaxed">
+                        <div className="flex items-center gap-2 text-white font-semibold font-mono text-xs uppercase text-emerald-300">
+                          <Navigation className="h-4 w-4 shrink-0" />
+                          <span>Militair Search & Rescue (SAR) & Ops</span>
+                        </div>
+                        <p className="font-light">
+                          De Koninklijke Luchtmacht (KLu) opereert permanent vanuit de strategische uitvalshavens van de Caraïben. Onze primaire militaire taken omvatten:
+                        </p>
+                        <ul className="space-y-2 relative border-l border-emerald-500/20 ml-2 pl-4">
+                          <li>
+                            <strong className="text-white font-medium">Maritime Search and Rescue (SAR):</strong> Het direct opsporen en evacueren van opvarenden of neergekomen toestellen rondom de Arubaanse wateren met tactical hoist maneuvers.
+                          </li>
+                          <li>
+                            <strong className="text-white font-medium">Luchtruimbeveiliging & Interceptie:</strong> Het handhaven van soevereiniteit door verdachte ongeïdentificeerde VFR/IFR contacten op te vangen en te begeleiden via interceptie protocollen.
+                          </li>
+                          <li>
+                            <strong className="text-white font-medium">Tactisch Transport & VIP:</strong> Het overbrengen van rijksambtenaren, defensiematerieel of speciaal commando-personeel namens het Koninkrijk.
+                          </li>
+                        </ul>
+                        <div className="p-3 bg-slate-900 border border-slate-850 rounded-xl font-mono text-[10px] text-amber-500 leading-normal">
+                          ⚠️ INSTRUCTIE: SAR helicopters hebben ten allen tijde absolute voorrang in het control-area (CTR) van Beatrix Airport na melding via de noodfrequentie 121.50 MHz.
+                        </div>
+                      </div>
+                    )}
+
+                    {activeHandbookTab === "atc" && (
+                      <div className="space-y-3 animate-fade-in font-sans text-[11.5px] leading-relaxed">
+                        <div className="flex items-center gap-2 text-white font-semibold font-mono text-xs uppercase text-emerald-300">
+                          <Plane className="h-4 w-4 shrink-0" />
+                          <span>ATC Samenwerking & Noodoproepen</span>
+                        </div>
+                        <p className="font-light">
+                          Alle militaire missies en formatievluchten dienen nauwkeurig gecoördineerd te worden met de plaatselijke Air Traffic Controller (ATC).
+                        </p>
+                        <div className="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-850 text-slate-300 font-mono text-[10.5px] leading-relaxed">
+                          <div className="text-white font-bold mb-1 font-sans">Standard Radio Telecom (RT-taal):</div>
+                          <div>• <span className="text-emerald-400 font-bold">"Raptor Flight"</span> - Callsign prefix voor jachtvliegtuigen.</div>
+                          <div>• <span className="text-emerald-400 font-bold">"Albatross"</span> - Callsign prefix voor tactisch luchttransport (C-130).</div>
+                          <div>• <span className="text-red-400 font-bold">"PAN-PAN / MAYDAY"</span> - Onmiddellijke status noodprioriteit. Nooit onnodig zenden.</div>
+                          <div>• <span className="text-emerald-400 font-bold">"Roger"</span> - Begrepen en akkoord met de instructie.</div>
+                        </div>
+                        <p className="font-light">
+                          Wanneer u formatievliegen of gevechtstraining overweegt, dient u een defensie-ticket te openen in de Discord server om airspace reserveringen vast te leggen.
+                        </p>
+                      </div>
+                    )}
+
+                    {activeHandbookTab === "ranks" && (
+                      <div className="space-y-3 animate-fade-in font-sans text-[11.5px] leading-relaxed">
+                        <div className="flex items-center gap-2 text-white font-semibold font-mono text-xs uppercase text-emerald-300">
+                          <Shield className="h-4 w-4 shrink-0" />
+                          <span>Rangen en Bevoegdheden</span>
+                        </div>
+                        <p className="font-light">
+                          Binnen het Luchtmacht Commando (MLC) wordt een strakke hiërarchie gehanteerd om operationele paraatheid en discipline te borgen. Handhaving hiervan is de verantwoordelijkheid van de Officieren.
+                        </p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                            <span className="font-semibold text-white font-sans text-xs">1. Generaal / Kolonel (Directie)</span>
+                            <span className="text-[10px] text-emerald-400 font-mono font-bold">Beherend Officier</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                            <span className="font-semibold text-white font-sans text-xs">2. Majoor / Kapitein (Instructeurs)</span>
+                            <span className="text-[10px] text-emerald-400 font-mono font-bold">Toetsingsbevoegd</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                            <span className="font-semibold text-white font-sans text-xs">3. Luitenant / Sergeant (Piloten)</span>
+                            <span className="text-[10px] text-teal-400 font-mono font-bold">Gecertificeerd Vlieger</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                            <span className="font-semibold text-white font-sans text-xs">4. Korporaal / Soldaat (Leden)</span>
+                            <span className="text-[10px] text-slate-500 font-mono font-bold">Rekruut / Aspirant</span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] italic text-slate-400 font-sans mt-2">
+                          Accreditatie en promoties worden toegekend op basis van actieve vlieguren en theorievoldoendes.
+                        </p>
+                      </div>
+                    )}
+
+                    {activeHandbookTab === "fleet" && (
+                      <div className="space-y-3 animate-fade-in font-sans text-[11.5px] leading-relaxed">
+                        <div className="flex items-center gap-2 text-white font-semibold font-mono text-xs uppercase text-emerald-300">
+                          <Plane className="h-4 w-4 shrink-0" />
+                          <span>Militaire Vliegtuigmodellen</span>
+                        </div>
+                        <p className="font-light">
+                          De operationele vloot van de Caraïbische KLu-divisie bestaat uit de volgende hoogwaardige tactische platforms:
+                        </p>
+                        <div className="space-y-3">
+                          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-850/80">
+                            <div className="flex justify-between font-mono text-[10.5px] text-white font-bold uppercase">
+                              <span>🚁 NH90 SAR Tactische Copter</span>
+                              <span className="text-teal-400">Tactical</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-normal font-sans mt-1">
+                              Ideaal voor opsporing op zee, drenkelingen redden en spoedeisend medisch vervoer tussen de eilanden.
+                            </p>
+                          </div>
+                          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-850/80">
+                            <div className="flex justify-between font-mono text-[10.5px] text-white font-bold uppercase">
+                              <span>✈️ F-16 Fighting Falcon</span>
+                              <span className="text-rose-400">Gevechtsjager</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-normal font-sans mt-1">
+                              Extreem wendbare onderscheppingsvliegtuigen belast met de Arubaanse luchtruimbeveiliging en escortes.
+                            </p>
+                          </div>
+                          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-850/80">
+                            <div className="flex justify-between font-mono text-[10.5px] text-white font-bold uppercase">
+                              <span>🛫 C-130 Hercules Cruiser</span>
+                              <span className="text-sky-400">Zwaar Transport</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-normal font-sans mt-1">
+                              Vrachtgigant ontworpen om gigantische contingenten troepen, voertuigen en hulpmiddelen droppen.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Custom Alert Modal */}
         {portalAlertMessage && (
