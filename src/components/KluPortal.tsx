@@ -96,7 +96,7 @@ export default function KluPortal({
     switch (type) {
       case "helicopter": return "Helikopter Brevet";
       case "large-plane": return "Vliegtuig Groot";
-      case "small-plane": return "Vliegtuig Klein (C172/Complex)";
+      case "small-plane": return "Vliegtuig Klein";
       default: return type;
     }
   };
@@ -175,7 +175,7 @@ export default function KluPortal({
   });
 
   // Geverifieerde KLu piloten en bevoegde stadsdirectie mogen hierin
-  const isAuthorized = true; // Altijd geverifieerd voor testgemak
+  const isAuthorized = isLoggedIn && (role === "owner" || role === "manager" || role === "medewerker" || role === "klu");
 
   if (!isAuthorized) {
     return (

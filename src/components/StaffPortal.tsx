@@ -3643,8 +3643,8 @@ export default function StaffPortal({
                         onChange={(e) => setFleetType(e.target.value as any)}
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-[#ea580c] outline-none text-xs text-slate-200"
                       >
-                        <option value="small-plane">Vliegtuig Klein (Single-Engine)</option>
-                        <option value="large-plane">Vliegtuig Groot (Multi-Engine/Jet)</option>
+                        <option value="small-plane">Vliegtuig Klein</option>
+                        <option value="large-plane">Vliegtuig Groot</option>
                         <option value="helicopter">Helikopter</option>
                       </select>
                     </div>
@@ -4532,8 +4532,8 @@ export default function StaffPortal({
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 focus:border-[#ea580c] outline-none text-slate-300"
                     >
                       <option value="helicopter">Helikopter brevet</option>
-                      <option value="small-plane">Vliegtuig Klein (Single-Engine)</option>
-                      <option value="large-plane">Vliegtuig Groot (Multi-Engine/Jet)</option>
+                      <option value="small-plane">Vliegtuig Klein</option>
+                      <option value="large-plane">Vliegtuig Groot</option>
                     </select>
                   </div>
 
