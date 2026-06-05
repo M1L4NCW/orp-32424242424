@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import BrevettenHub from "./components/BrevettenHub";
 import AircraftMarketplace from "./components/AircraftMarketplace";
 import StaffPortal from "./components/StaffPortal";
+import KluPortal from "./components/KluPortal";
 import { DEFAULT_ISSUED_LICENSES, DEFAULT_INVENTORY, AIRCRAFT_LIST, DEFAULT_FINANCIAL_CONFIG } from "./data";
 import LSIAFuturisticMap from "./components/LSIAFuturisticMap";
 
@@ -34,6 +35,12 @@ export default function App() {
   const [currentTab, setCurrentTab] = React.useState<string>("staff");
   const [logbook, setLogbook] = React.useState<PilotLogbook>(DEFAULT_LOGBOOK);
   const [enrolledCourses, setEnrolledCourses] = React.useState<string[]>([]);
+
+  // Shared Authentication states across portals
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [loggedInUser, setLoggedInUser] = React.useState<StaffUser | null>(null);
+  const [role, setRole] = React.useState<"owner" | "manager" | "medewerker" | "klu" | null>(null);
+  const [fullname, setFullname] = React.useState("");
   
   // Direct and manager control states
   const [issuedLicenses, setIssuedLicenses] = React.useState<IssuedLicense[]>([]);
@@ -132,11 +139,12 @@ export default function App() {
     saveSharedPortalData({ financialConfig: updated });
   };
 
-  // Auto-switch to staff tab if redirecting back from Discord with code parameter
+  // Auto-switch to staff or klu tab if redirecting back from Discord with code parameter
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("code")) {
-      setCurrentTab("staff");
+      const source = localStorage.getItem("@luchtvaart_oranjestad_discord_login_source") || "staff";
+      setCurrentTab(source);
     }
   }, []);
 
@@ -588,6 +596,32 @@ export default function App() {
             onUpdateFinancialConfig={handleUpdateFinancialConfig}
             staffAccounts={staffAccounts}
             onUpdateStaffAccounts={handleUpdateStaffAccounts}
+            isLoggedIn={isLoggedIn}
+            setIsLoggedIn={setIsLoggedIn}
+            loggedInUser={loggedInUser}
+            setLoggedInUser={setLoggedInUser}
+            role={role}
+            setRole={setRole}
+            fullname={fullname}
+            setFullname={setFullname}
+          />
+        )}
+
+        {/* Tab 7: KLu Rijksportaal - Dedicated top-level tab */}
+        {currentTab === "klu" && (
+          <KluPortal 
+            issuedLicenses={issuedLicenses}
+            staffAccounts={staffAccounts}
+            onUpdateStaffAccounts={handleUpdateStaffAccounts}
+            onUpdateLicense={handleUpdateLicense}
+            isLoggedIn={isLoggedIn}
+            setIsLoggedIn={setIsLoggedIn}
+            loggedInUser={loggedInUser}
+            setLoggedInUser={setLoggedInUser}
+            role={role}
+            setRole={setRole}
+            fullname={fullname}
+            setFullname={setFullname}
           />
         )}
       </main>

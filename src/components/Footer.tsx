@@ -35,6 +35,11 @@ export default function Footer({ setCurrentTab }: { setCurrentTab: (tab: string)
                   Personeelsportaal (🔐)
                 </button>
               </li>
+              <li>
+                <button onClick={() => setCurrentTab("klu")} className="hover:text-white transition-colors text-brand-500 hover:text-brand-400 font-semibold cursor-pointer text-left">
+                  KLu Rijksportaal (🎖️)
+                </button>
+              </li>
             </ul>
           </div>
 

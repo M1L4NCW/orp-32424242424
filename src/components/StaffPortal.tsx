@@ -2,7 +2,7 @@ import React from "react";
 import { 
   ShieldCheck, FileSpreadsheet, PlusCircle, Trash2, Pencil,
   Settings, UserCheck, HelpCircle, AlertCircle, FileText, CheckCircle, Plus, Image, Users, HelpCircle as HelpIcon,
-  Coins, TrendingUp, Percent, Award, Calendar, Megaphone, Shield, Plane, Navigation
+  Coins, TrendingUp, Percent, Award, Calendar, Megaphone, Shield, Plane, Navigation, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import { IssuedLicense, AircraftInventory, Aircraft, StaffUser, FinancialConfig } from "../types";
 import { LICENSES } from "../data";
@@ -44,6 +44,15 @@ interface StaffPortalProps {
   onUpdateFinancialConfig?: (config: FinancialConfig) => void;
   staffAccounts: StaffUser[];
   onUpdateStaffAccounts: (accounts: StaffUser[]) => void;
+  // Shared Auth states
+  isLoggedIn: boolean;
+  setIsLoggedIn: (val: boolean) => void;
+  loggedInUser: StaffUser | null;
+  setLoggedInUser: (user: StaffUser | null) => void;
+  role: "owner" | "manager" | "medewerker" | "klu" | null;
+  setRole: (role: "owner" | "manager" | "medewerker" | "klu" | null) => void;
+  fullname: string;
+  setFullname: (val: string) => void;
 }
 
 // Default staff accounts
@@ -190,7 +199,15 @@ export default function StaffPortal({
   financialConfig,
   onUpdateFinancialConfig,
   staffAccounts = [],
-  onUpdateStaffAccounts
+  onUpdateStaffAccounts,
+  isLoggedIn,
+  setIsLoggedIn,
+  loggedInUser,
+  setLoggedInUser,
+  role,
+  setRole,
+  fullname,
+  setFullname
 }: StaffPortalProps) {
   
   // Selection/Input states for Instructor selection via Discord ID
@@ -357,12 +374,8 @@ export default function StaffPortal({
   }, [financialConfig]);
 
   // Authentication states
-  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-  const [loggedInUser, setLoggedInUser] = React.useState<StaffUser | null>(null);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [role, setRole] = React.useState<"owner" | "manager" | "medewerker" | "klu" | null>(null);
-  const [fullname, setFullname] = React.useState("");
   const [loginError, setLoginError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
 
@@ -396,6 +409,72 @@ export default function StaffPortal({
   const [sheetError, setSheetError] = React.useState<string | null>(null);
   const [sheetSuccess, setSheetSuccess] = React.useState<string | null>(null);
   const [isSyncingAll, setIsSyncingAll] = React.useState<boolean>(false);
+
+  // Registry Sub-Tabs & Strike / Revocation states
+  const [registrySubTab, setRegistrySubTab] = React.useState<"active" | "revoked">("active");
+  const [strikeModalLic, setStrikeModalLic] = React.useState<IssuedLicense | null>(null);
+  const [newStrikeReason, setNewStrikeReason] = React.useState<string>("");
+  const [revokeModalLic, setRevokeModalLic] = React.useState<IssuedLicense | null>(null);
+  const [newRevokeReason, setNewRevokeReason] = React.useState<string>("");
+
+  const handleAddStrike = (lic: IssuedLicense, reason: string) => {
+    const currentStrikes = lic.strikes || 0;
+    const currentReasons = lic.strikeReasons || [];
+    const updatedStrikes = currentStrikes + 1;
+    const updatedReasons = [...currentReasons, reason.trim() || `Regelovertreding #${updatedStrikes}`];
+    
+    const updatedLic: IssuedLicense = {
+      ...lic,
+      strikes: updatedStrikes,
+      strikeReasons: updatedReasons,
+    };
+    
+    // Auto-revoke if strikes reach 2
+    if (updatedStrikes >= 2) {
+      updatedLic.revoked = true;
+      updatedLic.revokedBy = fullname || "Systeem";
+      updatedLic.revokeDate = new Date().toLocaleDateString("nl-NL") + " " + new Date().toLocaleTimeString("nl-NL", { hour: '2-digit', minute: '2-digit' });
+      updatedLic.revokeReason = `Automatisch ingenomen wegens het behalen van ${updatedStrikes} strikes. Redenen: ${updatedReasons.join("; ")}`;
+    }
+    
+    onUpdateLicense(updatedLic);
+    setStrikeModalLic(null);
+    setNewStrikeReason("");
+    
+    if (updatedStrikes >= 2) {
+      setPortalAlertMessage(`Brevet van ${lic.citizenName} is automatisch INGENOMEN omdat zij 2 of meer strikes hebben behaald!`);
+    } else {
+      setPortalAlertMessage(`Strike #${updatedStrikes} succesvol opgelegd aan ${lic.citizenName}.`);
+    }
+  };
+
+  const handleRevokeLicense = (lic: IssuedLicense, reason: string) => {
+    const updatedLic: IssuedLicense = {
+      ...lic,
+      revoked: true,
+      revokedBy: fullname || "Staff",
+      revokeDate: new Date().toLocaleDateString("nl-NL") + " " + new Date().toLocaleTimeString("nl-NL", { hour: '2-digit', minute: '2-digit' }),
+      revokeReason: reason.trim() || "Onmiddellijk ingenomen door directie/management."
+    };
+    onUpdateLicense(updatedLic);
+    setRevokeModalLic(null);
+    setNewRevokeReason("");
+    setPortalAlertMessage(`Brevet van ${lic.citizenName} is per direct INGENOMEN.`);
+  };
+
+  const handleResetLicense = (lic: IssuedLicense) => {
+    const updatedLic: IssuedLicense = {
+      ...lic,
+      strikes: 0,
+      strikeReasons: [],
+      revoked: false,
+      revokedBy: undefined,
+      revokeDate: undefined,
+      revokeReason: undefined
+    };
+    onUpdateLicense(updatedLic);
+    setPortalAlertMessage(`Brevet van ${lic.citizenName} is succesvol hersteld (strikes en intrekking gewist).`);
+  };
 
   // Sync state with props loaded from the database
   React.useEffect(() => {
@@ -929,7 +1008,7 @@ export default function StaffPortal({
         if (data.user.role === "owner" || data.user.role === "manager") {
           setActiveTab("administration");
         } else if (data.user.role === "klu") {
-          setActiveTab("klu");
+          setActiveTab("registry");
         } else {
           setActiveTab("issue");
         }
@@ -945,6 +1024,8 @@ export default function StaffPortal({
   const handleStartDiscordLogin = async () => {
     setDiscordLoginError(null);
     setIsDiscordLoggingIn(true);
+    // Mark source as "staff" in localStorage so App.tsx knows to redirect back to Staff tab
+    localStorage.setItem("@luchtvaart_oranjestad_discord_login_source", "staff");
     try {
       const redirectUri = getDiscordRedirectUri();
       const res = await fetch(`/api/discord/auth-url?redirectUri=${encodeURIComponent(redirectUri)}`);
@@ -1022,6 +1103,8 @@ export default function StaffPortal({
       // Auto tabs based on role
       if (matchedUser.role === "owner" || matchedUser.role === "manager") {
         setActiveTab("administration");
+      } else if (matchedUser.role === "klu") {
+        setActiveTab("registry");
       } else {
         setActiveTab("issue");
       }
@@ -1230,6 +1313,10 @@ export default function StaffPortal({
 
   // Filtering license list
   const filteredLicenses = issuedLicenses.filter(lic => {
+    const isRevoked = !!lic.revoked;
+    const isMatchSubTab = registrySubTab === "active" ? !isRevoked : isRevoked;
+    if (!isMatchSubTab) return false;
+
     const matchesSearch = 
       lic.citizenName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lic.citizenId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1332,7 +1419,7 @@ export default function StaffPortal({
         {/* Tab Navigation inside staff pane */}
         <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-900 pb-4">
           
-          {(role === "owner" || role === "manager" || role === "medewerker") && (
+          {(role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (
             <button
               onClick={() => setActiveTab("registry")}
               className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
@@ -1346,7 +1433,7 @@ export default function StaffPortal({
             </button>
           )}
 
-          {(role === "owner" || role === "manager" || role === "medewerker") && (
+          {(role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (
             <button
               onClick={() => setActiveTab("issue")}
               className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
@@ -1402,19 +1489,7 @@ export default function StaffPortal({
             </button>
           )}
 
-          {(role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (
-            <button
-              onClick={() => setActiveTab("klu")}
-              className={`px-4 py-2 rounded-lg font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === "klu"
-                  ? "bg-slate-950 text-emerald-400 border border-emerald-500/50 shadow-md shadow-emerald-500/10"
-                  : "bg-transparent text-slate-400 hover:text-white"
-              }`}
-            >
-              <Shield className="h-4 w-4 text-emerald-400 animate-pulse" />
-              <span className="font-semibold text-emerald-300">KLu Rijksportaal</span>
-            </button>
-          )}
+
         </div>
 
         {/* Content Tabs Area */}
@@ -1450,35 +1525,72 @@ export default function StaffPortal({
                 </div>
               </div>
 
+              {/* Segmented subtabs for Registry: Actieve vs Afgenomen */}
+              <div className="flex bg-slate-900/60 border border-slate-900 p-1 rounded-xl max-w-sm mb-6">
+                <button
+                  type="button"
+                  onClick={() => setRegistrySubTab("active")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                    registrySubTab === "active"
+                      ? "bg-[#ea580c] text-white shadow-md font-bold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Actieve Brevetten ({issuedLicenses.filter(l => !l.revoked).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegistrySubTab("revoked")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                    registrySubTab === "revoked"
+                      ? "bg-rose-600 text-white shadow-md font-bold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  Afgenomen Brevetten ({issuedLicenses.filter(l => l.revoked).length})
+                </button>
+              </div>
+
               {/* Table / Grid */}
               {filteredLicenses.length === 0 ? (
-                <div className="p-8 text-center bg-slate-900/40 rounded-2xl border border-dashed border-slate-850 text-xs text-slate-500">
-                  Geen geregistreerde diploma's gevonden voor deze selectie.
+                <div className="p-12 text-center bg-slate-900/10 rounded-2xl border border-dashed border-slate-850/60 text-xs text-slate-500 space-y-2">
+                  <AlertCircle className="h-8 w-8 text-slate-600 mx-auto" />
+                  <p>Geen geregistreerde diploma's gevonden voor deze selectie.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs font-mono">
                     <thead>
                       <tr className="border-b border-slate-850 text-slate-500 text-[10px] uppercase">
-                        <th className="py-3 px-4 animate-fade-in">Diploma ID</th>
+                        <th className="py-3 px-4">Diploma ID</th>
                         <th className="py-3 px-4">Klant (Piloot)</th>
                         <th className="py-3 px-4">Burger ID / BSN</th>
                         <th className="py-3 px-4">Categorie</th>
                         <th className="py-3 px-4">Docent (Staff)</th>
-                        <th className="py-3 px-4">Datum</th>
-                        <th className="py-3 px-4">Commissie status</th>
-                        <th className="py-3 px-4 font-bold text-slate-500">Belasting afgedragen</th>
-                        <th className="py-3 px-4 font-bold text-slate-500">Mgt Fee (Mike & Ron)</th>
+                        <th className="py-3 px-4">Strikes</th>
+                        {registrySubTab === "revoked" ? (
+                          <>
+                            <th className="py-3 px-4">Ingetrokken door</th>
+                            <th className="py-3 px-4">Datum / Reden</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="py-3 px-4">Datum</th>
+                            <th className="py-3 px-4">Financiën Status</th>
+                          </>
+                        )}
                         <th className="py-3 px-4 text-right">Acties</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-850/60 text-slate-300">
                       {filteredLicenses.map((lic) => (
                         <tr key={lic.id} className="hover:bg-slate-900/40 transition-colors">
-                          <td className="py-3 px-4 text-[#ea580c] font-bold">{lic.id}</td>
-                          <td className="py-3 px-4 font-sans font-medium text-white">{lic.citizenName}</td>
-                          <td className="py-3 px-4 font-bold text-amber-500">{lic.citizenId}</td>
-                          <td className="py-3 px-4">
+                          <td className="py-3.5 px-4 text-[#ea580c] font-bold">{lic.id}</td>
+                          <td className="py-3.5 px-4 font-sans font-medium text-white">{lic.citizenName}</td>
+                          <td className="py-3.5 px-4 font-bold text-amber-500">{lic.citizenId}</td>
+                          <td className="py-3.5 px-4">
                             <span className={`px-2.5 py-0.5 rounded text-[9px] uppercase font-bold text-slate-950 ${
                               lic.licenseType === "helicopter" 
                                 ? "bg-cyan-400" 
@@ -1489,53 +1601,135 @@ export default function StaffPortal({
                               {getLicenseTypeLabel(lic.licenseType)}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-slate-400">{lic.issuedBy}</td>
-                          <td className="py-3 px-4 text-slate-400">{lic.issueDate}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 rounded text-[8.5px] uppercase font-bold ${
-                              lic.employeeCommissionPaid 
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25" 
-                                : "bg-amber-500/15 text-amber-500 border border-amber-500/20 animate-pulse"
-                            }`}>
-                              {lic.employeeCommissionPaid ? "Voldaan" : "Openstaand"}
-                            </span>
+                          <td className="py-3.5 px-4 text-slate-400">{lic.issuedBy}</td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5" title={`${lic.strikes || 0} van de 2 strikes opgelopen`}>
+                              {Array.from({ length: 2 }).map((_, i) => {
+                                const hasStrike = (lic.strikes || 0) > i;
+                                return (
+                                  <span
+                                    key={i}
+                                    className={`h-2.5 w-2.5 rounded-full border transition-all ${
+                                      hasStrike
+                                        ? "bg-rose-500 border-rose-600 shadow shadow-rose-500 animate-pulse"
+                                        : "bg-slate-850 border-slate-700"
+                                    }`}
+                                    title={hasStrike ? `Strike ${i + 1}: ${lic.strikeReasons?.[i] || "Niet nader gespecificeerd"}` : "Geen strike"}
+                                  />
+                                );
+                              })}
+                              <span className="text-[11px] font-bold text-slate-400 pl-1">
+                                {(lic.strikes || 0)}
+                              </span>
+                            </div>
                           </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 rounded text-[8.5px] uppercase font-bold ${
-                              lic.taxPaid 
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25" 
-                                : "bg-rose-500/20 text-rose-450 border border-rose-500/30"
-                            }`}>
-                              {lic.taxPaid ? "Afgedragen" : "Openstaand"}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 rounded text-[8.5px] uppercase font-bold ${
-                              lic.managementFeePaid 
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25" 
-                                : "bg-amber-500/15 text-amber-500 border border-amber-500/20 animate-pulse"
-                            }`}>
-                              {lic.managementFeePaid ? "Voldaan" : "Openstaand"}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
+                          {registrySubTab === "revoked" ? (
+                            <>
+                              <td className="py-3.5 px-4 text-slate-300 font-sans font-medium">
+                                <span className="bg-rose-500/10 text-rose-450 border border-rose-500/20 px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
+                                  🚫 {lic.revokedBy || "Beheerder"}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-slate-400 font-sans max-w-xs">
+                                <div className="text-[10px] text-slate-500 font-mono mb-1">{lic.revokeDate}</div>
+                                <div className="text-slate-300 text-xs italic break-words leading-relaxed">
+                                  "{lic.revokeReason || "Geen reden ingevoerd"}"
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="py-3.5 px-4 text-slate-400">{lic.issueDate}</td>
+                              <td className="py-3.5 px-4">
+                                <div className="flex flex-col gap-1 text-[9px]">
+                                  <div className="flex items-center gap-1.5 justify-between">
+                                    <span className="text-slate-500 uppercase">Comm:</span>
+                                    <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.employeeCommissionPaid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-500"}`}>
+                                      {lic.employeeCommissionPaid ? "Voldaan" : "Openstaand"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 justify-between">
+                                    <span className="text-slate-500 uppercase">Belasting:</span>
+                                    <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.taxPaid ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/15 text-rose-450"}`}>
+                                      {lic.taxPaid ? "Afgedragen" : "Openstaand"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 justify-between">
+                                    <span className="text-slate-500 uppercase">Mgt fee:</span>
+                                    <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.managementFeePaid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-500"}`}>
+                                      {lic.managementFeePaid ? "Voldaan" : "Openstaand"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                          <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditModal(lic)}
-                                className="p-1.5 text-slate-400 hover:text-[#ea580c] hover:bg-slate-800 rounded transition-all cursor-pointer inline-flex items-center"
-                                title="Brevet bewerken"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
+                              {registrySubTab === "active" ? (
+                                <>
+                                  {/* Strike action button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setStrikeModalLic(lic)}
+                                    className="p-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-slate-950 rounded-lg transition-all cursor-pointer inline-flex items-center gap-1"
+                                    title="Strike opleggen (+1)"
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    <span className="text-[10px] font-bold font-sans">+1</span>
+                                  </button>
+
+                                  {/* Manual revoke button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setRevokeModalLic(lic)}
+                                    className="p-1.5 bg-rose-600/10 border border-rose-600/20 text-rose-500 hover:bg-rose-600 hover:text-white rounded-lg transition-all cursor-pointer inline-flex items-center gap-1"
+                                    title="Brevet intrekken / afnemen"
+                                  >
+                                    <Shield className="h-3.5 w-3.5 text-rose-400" />
+                                    <span className="text-[10px] font-bold font-sans">Innemen</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditModal(lic)}
+                                    className="p-1.5 text-slate-400 hover:text-[#ea580c] hover:bg-slate-800 rounded-lg border border-slate-900 transition-all cursor-pointer inline-flex items-center font-sans font-semibold text-xs"
+                                    title="Brevet bewerken"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  {/* Restore action button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (window.confirm(`Weet u zeker dat u het vliegbrevet van ${lic.citizenName} wilt herstellen naar Actief?`)) {
+                                        handleResetLicense(lic);
+                                      }
+                                    }}
+                                    className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 rounded-lg transition-all cursor-pointer inline-flex items-center gap-1"
+                                    title="Brevet herstellen en status vrijgeven"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    <span className="text-[10px] font-bold font-sans">Activeren</span>
+                                  </button>
+                                </>
+                              )}
+
                               {(role === "manager" || role === "owner") && (
                                 <button
                                   type="button"
-                                  onClick={() => onRemoveLicense(lic.id)}
-                                  className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-slate-800 rounded transition-all cursor-pointer inline-flex items-center"
-                                  title="Brevet intrekken"
+                                  onClick={() => {
+                                    if (window.confirm(`Weet u zeker dat u brevet ${lic.id} permanent uit de database wilt wissen? Dit kan niet ongedaan worden gemaakt.`)) {
+                                      onRemoveLicense(lic.id);
+                                    }
+                                  }}
+                                  className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-slate-800 border border-slate-900 rounded-lg transition-all cursor-pointer inline-flex items-center"
+                                  title="Permanent wissen uit administratie"
                                 >
-                                  <Trash2 className="h-4.5 w-4.5" />
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               )}
                             </div>
@@ -1547,6 +1741,103 @@ export default function StaffPortal({
                 </div>
               )}
             </div>
+
+            {/* Custom Modals inside activeTab === registry to keep state local */}
+            {strikeModalLic && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl max-w-md w-full shadow-2xl relative animate-fade-in text-left">
+                  <div className="flex items-center gap-3 text-amber-500 mb-4 font-sans font-semibold">
+                    <AlertTriangle className="h-6 w-6 shrink-0" />
+                    <h3 className="font-display font-semibold text-lg text-white">Strike Opleggen (Protocol)</h3>
+                  </div>
+                  <p className="text-slate-300 text-xs leading-relaxed font-sans mb-4">
+                    U staat op het punt strike <strong className="text-amber-500">#{(strikeModalLic.strikes || 0) + 1}</strong> op te leggen aan <strong className="text-white">{strikeModalLic.citizenName}</strong> (ID: {strikeModalLic.citizenId}).
+                  </p>
+                  
+                  {((strikeModalLic.strikes || 0) + 1) >= 2 && (
+                    <div className="mb-4 text-rose-450 font-bold bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl text-[11px] font-sans">
+                      ⚠️ DIRECT INTREKKEN: Dit is de tweede strike! Het brevet zal na bevestiging automatisch en onmiddellijk worden ingenomen.
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2 font-sans mb-6">
+                    <label className="text-[11px] uppercase tracking-wider font-bold text-slate-400 font-mono">Reden voor Strike</label>
+                    <textarea
+                      placeholder="Vul hier de specifieke reden en eventuele bewijslast in..."
+                      value={newStrikeReason}
+                      onChange={(e) => setNewStrikeReason(e.target.value)}
+                      className="w-full h-24 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-amber-500 outline-none resize-none font-sans"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2.5 font-sans text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStrikeModalLic(null);
+                        setNewStrikeReason("");
+                      }}
+                      className="bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold py-2 px-4 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Annuleren
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!newStrikeReason.trim()}
+                      onClick={() => handleAddStrike(strikeModalLic, newStrikeReason)}
+                      className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black py-2 px-5 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Opleggen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {revokeModalLic && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl max-w-md w-full shadow-2xl relative animate-fade-in text-left">
+                  <div className="flex items-center gap-3 text-red-500 mb-4 font-sans font-semibold">
+                    <AlertCircle className="h-6 w-6 shrink-0" />
+                    <h3 className="font-display font-semibold text-lg text-white">Brevet Handmatig Innemen</h3>
+                  </div>
+                  <p className="text-slate-300 text-xs leading-relaxed font-sans mb-4">
+                    U gaat het vliegbrevet van <strong className="text-white">{revokeModalLic.citizenName}</strong> (ID: {revokeModalLic.citizenId}) handmatig intrekken / afnemen.
+                  </p>
+                  
+                  <div className="space-y-2 font-sans mb-6">
+                    <label className="text-[11px] uppercase tracking-wider font-bold text-slate-400 font-mono">Reden voor Intrekking</label>
+                    <textarea
+                      placeholder="Bijv. Gevaarlijk vlieggedrag of herhaaldelijk schenden van de regels..."
+                      value={newRevokeReason}
+                      onChange={(e) => setNewRevokeReason(e.target.value)}
+                      className="w-full h-24 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-red-500 outline-none resize-none font-sans"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2.5 font-sans text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRevokeModalLic(null);
+                        setNewRevokeReason("");
+                      }}
+                      className="bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold py-2 px-4 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Annuleren
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!newRevokeReason.trim()}
+                      onClick={() => handleRevokeLicense(revokeModalLic, newRevokeReason)}
+                      className="bg-red-500 hover:bg-red-650 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-2 px-5 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Direct Innemen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3720,25 +4011,27 @@ export default function StaffPortal({
           </div>
         )}
 
-        {/* KLU PORTAL TAB AREA */}
-        {activeTab === "klu" && (role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (() => {
-          // Local states inside IIFE for clean scope
-          const [kluSearch, setKluSearch] = React.useState("");
-          const [kluFilter, setKluFilter] = React.useState<"all" | "helicopter" | "small-plane" | "large-plane">("all");
-          const [activeHandbookTab, setActiveHandbookTab] = React.useState<"missions" | "atc" | "ranks" | "fleet">("missions");
-
-          const filteredKluLicenses = issuedLicenses.filter(lic => {
-            const query = kluSearch.toLowerCase().trim();
-            const matchesSearch = 
-              lic.citizenName.toLowerCase().includes(query) ||
-              lic.citizenId.toLowerCase().includes(query) ||
-              lic.issuedBy.toLowerCase().includes(query);
-            
-            const matchesType = kluFilter === "all" || lic.licenseType === kluFilter;
-            return matchesSearch && matchesType;
-          });
-
-          return (
+        {/* KLU PORTAL TAB AREA / REDIRECT */}
+        {activeTab === "klu" && (role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (
+          <div className="p-12 border border-dashed border-emerald-500/20 bg-slate-950 rounded-3xl text-center space-y-3 font-sans w-full max-w-2xl mx-auto my-6 text-left">
+            <Shield className="h-8 w-8 text-emerald-400 mx-auto animate-pulse" />
+            <h4 className="font-semibold text-white text-center text-sm">KLu Rijksportaal is verplaatst</h4>
+            <p className="text-slate-400 text-xs text-center max-w-md mx-auto leading-relaxed">
+              Het MLC Militaire Rijksportaal bevindt zich nu in zijn eigen, onafhankelijke hoofd-segment bovenaan de navigatiebalk. Klik op <strong className="text-emerald-400">"KLu Rijksportaal"</strong> in het hoofdmenu om het portaal te betreden.
+            </p>
+          </div>
+        )}
+        {(() => {
+          // Dummy stubs for compilation of deactivated legacy block
+          const kluSearch = "";
+          const setKluSearch = (v: any) => {};
+          const kluFilter = "all";
+          const setKluFilter = (v: any) => {};
+          const filteredKluLicenses: any[] = [];
+          const activeHandbookTab = "missions" as any;
+          const setActiveHandbookTab = (v: any) => {};
+          return false && (() => {
+            return (
             <div className="space-y-8 animate-fade-in font-mono text-xs text-slate-300">
               {/* Glowing Hero Section */}
               <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-[#022c22]/40 border-2 border-emerald-500/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
@@ -4085,6 +4378,7 @@ export default function StaffPortal({
               </div>
             </div>
           );
+        })()
         })()}
 
         {/* Custom Alert Modal */}

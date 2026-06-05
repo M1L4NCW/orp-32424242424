@@ -103,6 +103,12 @@ export interface IssuedLicense {
   employeeCommissionPaid?: boolean;
   taxPaid?: boolean;
   managementFeePaid?: boolean;
+  strikes?: number;
+  strikeReasons?: string[];
+  revoked?: boolean;
+  revokedBy?: string;
+  revokeDate?: string;
+  revokeReason?: string;
 }
 
 export interface AircraftInventory {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Award, SlidersHorizontal, User, Plane, ShoppingBag } from "lucide-react";
+import { Award, SlidersHorizontal, User, Plane, ShoppingBag, Shield } from "lucide-react";
 import Logo from "./Logo";
 
 interface NavigationProps {
@@ -14,6 +14,7 @@ export default function Navigation({ currentTab, setCurrentTab }: NavigationProp
   const buttonItems = [
     { id: "home", label: "Home", icon: Plane },
     { id: "staff", label: "Personeelsportaal", icon: User },
+    { id: "klu", label: "KLu Rijksportaal", icon: Shield },
   ];
 
   return (
