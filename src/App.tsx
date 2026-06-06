@@ -4,7 +4,7 @@ import {
   MapPin, CheckCircle2, ShieldAlert, BookOpen, AlertCircle, Plus, Sparkles, Megaphone 
 } from "lucide-react";
 
-import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig, StaffUser } from "./types";
+import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig, StaffUser, KluHandbookChapter } from "./types";
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer";
 import BrevettenHub from "./components/BrevettenHub";
@@ -47,6 +47,7 @@ export default function App() {
   const [inventory, setInventory] = React.useState<AircraftInventory[]>([]);
   const [aircraftList, setAircraftList] = React.useState<Aircraft[]>([]);
   const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>([]);
+  const [kluHandbook, setKluHandbook] = React.useState<KluHandbookChapter[]>([]);
 
   // Success notifications
   const [transactionSuccess, setTransactionSuccess] = React.useState<string | null>(null);
@@ -245,6 +246,9 @@ export default function App() {
           if (data.staffAccounts !== undefined) {
             setStaffAccounts(data.staffAccounts);
           }
+          if (data.kluHandbook !== undefined) {
+            setKluHandbook(data.kluHandbook);
+          }
           if (data.announcement !== undefined) {
             setAnnouncement(data.announcement);
             localStorage.setItem("@luchtvaart_oranjestad_announcement", data.announcement);
@@ -292,6 +296,7 @@ export default function App() {
     savedSpreadsheetId?: string;
     financialConfig?: FinancialConfig;
     staffAccounts?: StaffUser[];
+    kluHandbook?: KluHandbookChapter[];
   }) => {
     try {
       await fetch("/api/portal-data", {
@@ -307,6 +312,11 @@ export default function App() {
   const handleUpdateStaffAccounts = (updatedAccounts: StaffUser[]) => {
     setStaffAccounts(updatedAccounts);
     saveSharedPortalData({ staffAccounts: updatedAccounts });
+  };
+
+  const handleUpdateKluHandbook = (updatedHandbook: KluHandbookChapter[]) => {
+    setKluHandbook(updatedHandbook);
+    saveSharedPortalData({ kluHandbook: updatedHandbook });
   };
 
   // Save logbook state Changes
@@ -614,6 +624,8 @@ export default function App() {
             staffAccounts={staffAccounts}
             onUpdateStaffAccounts={handleUpdateStaffAccounts}
             onUpdateLicense={handleUpdateLicense}
+            kluHandbook={kluHandbook}
+            onUpdateKluHandbook={handleUpdateKluHandbook}
             isLoggedIn={isLoggedIn}
             setIsLoggedIn={setIsLoggedIn}
             loggedInUser={loggedInUser}

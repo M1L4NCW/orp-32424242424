@@ -413,7 +413,8 @@ const readLocalFallback = () => {
         sheetsWebAppUrl: parsed.sheetsWebAppUrl || "",
         savedSpreadsheetId: parsed.savedSpreadsheetId || "",
         financialConfig: parsed.financialConfig || null,
-        staffAccounts: parsed.staffAccounts || []
+        staffAccounts: parsed.staffAccounts || [],
+        kluHandbook: parsed.kluHandbook || []
       };
     }
   } catch (error) {
@@ -428,7 +429,8 @@ const readLocalFallback = () => {
     sheetsWebAppUrl: "",
     savedSpreadsheetId: "",
     financialConfig: null,
-    staffAccounts: []
+    staffAccounts: [],
+    kluHandbook: []
   };
 };
 
@@ -458,7 +460,8 @@ const readPortalDataAsync = async () => {
           sheetsWebAppUrl: parsed.sheetsWebAppUrl || "",
           savedSpreadsheetId: parsed.savedSpreadsheetId || "",
           financialConfig: parsed.financialConfig || null,
-          staffAccounts: parsed.staffAccounts || []
+          staffAccounts: parsed.staffAccounts || [],
+          kluHandbook: parsed.kluHandbook || []
         };
         // Always mirror on disk for robustness
         writeLocalFallback(structured);
@@ -503,7 +506,8 @@ app.post("/api/portal-data", async (req, res) => {
     sheetsWebAppUrl,
     savedSpreadsheetId,
     financialConfig,
-    staffAccounts
+    staffAccounts,
+    kluHandbook
   } = req.body;
 
   const updated = {
@@ -515,7 +519,8 @@ app.post("/api/portal-data", async (req, res) => {
     sheetsWebAppUrl: sheetsWebAppUrl !== undefined ? sheetsWebAppUrl : existing.sheetsWebAppUrl,
     savedSpreadsheetId: savedSpreadsheetId !== undefined ? savedSpreadsheetId : existing.savedSpreadsheetId,
     financialConfig: financialConfig !== undefined ? financialConfig : existing.financialConfig,
-    staffAccounts: staffAccounts !== undefined ? staffAccounts : existing.staffAccounts
+    staffAccounts: staffAccounts !== undefined ? staffAccounts : existing.staffAccounts,
+    kluHandbook: kluHandbook !== undefined ? kluHandbook : existing.kluHandbook
   };
 
   await writePortalDataAsync(updated);

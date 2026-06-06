@@ -142,4 +142,13 @@ export interface FinancialConfig {
   largePlanePurchaseCost: number;
 }
 
+export interface KluHandbookChapter {
+  id: string;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 
