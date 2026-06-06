@@ -227,14 +227,7 @@ export default function KluPortal({
                 </div>
               )}
 
-              <div className="p-4 bg-slate-900/50 border border-slate-900 rounded-2xl text-xs font-light leading-relaxed text-slate-300">
-                <p className="font-mono text-[10px] text-emerald-400 font-bold mb-2 uppercase tracking-widest">Toegangseisen:</p>
-                <ul className="space-y-1 ml-1 pl-3 border-l border-emerald-500/25 text-[11px]">
-                  <li>• Lid in de KLu Discord Server</li>
-                  <li>• Gecertificeerde KLu rol (<span className="text-emerald-400 font-bold">ID: 1511787593891840146</span>)</li>
-                  <li>• Of vliegschool Directie status</li>
-                </ul>
-              </div>
+
 
               <button
                 type="button"
