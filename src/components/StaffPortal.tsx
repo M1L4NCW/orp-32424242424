@@ -774,6 +774,8 @@ export default function StaffPortal({
   const [newRemarks, setNewRemarks] = React.useState("");
   const [issuedByTeacher, setIssuedByTeacher] = React.useState("");
   const [formSuccess, setFormSuccess] = React.useState(false);
+  const [newIsPreExisting, setNewIsPreExisting] = React.useState(false);
+  const [newCustomIssueDate, setNewCustomIssueDate] = React.useState("");
 
   // Dynamic plane parameters are retired to focus purely on the Administration
   const [userCreatedMessage, setUserCreatedMessage] = React.useState<string | null>(null);
@@ -1181,11 +1183,12 @@ export default function StaffPortal({
       licenseType: newLicType,
       issuedBy: finalInstructorName,
       issuedByDiscordId: finalInstructorDiscordId || undefined,
-      issueDate: new Date().toLocaleDateString("nl-NL"),
+      issueDate: newIsPreExisting && newCustomIssueDate.trim() ? newCustomIssueDate.trim() : new Date().toLocaleDateString("nl-NL"),
       remarks: newRemarks.trim() || undefined,
-      employeeCommissionPaid: false,
-      taxPaid: false,
-      managementFeePaid: false
+      employeeCommissionPaid: newIsPreExisting ? true : false,
+      taxPaid: newIsPreExisting ? true : false,
+      managementFeePaid: newIsPreExisting ? true : false,
+      isPreExisting: newIsPreExisting
     };
 
     onAddLicense(newLic);
@@ -1243,6 +1246,8 @@ export default function StaffPortal({
     setNewCitName("");
     setNewCitId("BSN-");
     setNewRemarks("");
+    setNewIsPreExisting(false);
+    setNewCustomIssueDate("");
 
     setTimeout(() => {
       setFormSuccess(false);
@@ -1641,26 +1646,32 @@ export default function StaffPortal({
                             <>
                               <td className="py-3.5 px-4 text-slate-400">{lic.issueDate}</td>
                               <td className="py-3.5 px-4">
-                                <div className="flex flex-col gap-1 text-[9px]">
-                                  <div className="flex items-center gap-1.5 justify-between">
-                                    <span className="text-slate-500 uppercase">Comm:</span>
-                                    <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.employeeCommissionPaid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-500"}`}>
-                                      {lic.employeeCommissionPaid ? "Voldaan" : "Openstaand"}
-                                    </span>
+                                {lic.isPreExisting ? (
+                                  <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-xl text-[10px] text-center font-bold">
+                                    Bestaand (0 kosten)
                                   </div>
-                                  <div className="flex items-center gap-1.5 justify-between">
-                                    <span className="text-slate-500 uppercase">Belasting:</span>
-                                    <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.taxPaid ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/15 text-rose-450"}`}>
-                                      {lic.taxPaid ? "Afgedragen" : "Openstaand"}
-                                    </span>
+                                ) : (
+                                  <div className="flex flex-col gap-1 text-[9px]">
+                                    <div className="flex items-center gap-1.5 justify-between">
+                                      <span className="text-slate-500 uppercase">Comm:</span>
+                                      <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.employeeCommissionPaid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-500"}`}>
+                                        {lic.employeeCommissionPaid ? "Voldaan" : "Openstaand"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 justify-between">
+                                      <span className="text-slate-500 uppercase">Belasting:</span>
+                                      <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.taxPaid ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/15 text-rose-450"}`}>
+                                        {lic.taxPaid ? "Afgedragen" : "Openstaand"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 justify-between">
+                                      <span className="text-slate-500 uppercase">Mgt fee:</span>
+                                      <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.managementFeePaid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-500"}`}>
+                                        {lic.managementFeePaid ? "Voldaan" : "Openstaand"}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1.5 justify-between">
-                                    <span className="text-slate-500 uppercase">Mgt fee:</span>
-                                    <span className={`px-1.5 py-0.5 rounded font-extrabold ${lic.managementFeePaid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-500"}`}>
-                                      {lic.managementFeePaid ? "Voldaan" : "Openstaand"}
-                                    </span>
-                                  </div>
-                                </div>
+                                )}
                               </td>
                             </>
                           )}
@@ -1844,18 +1855,57 @@ export default function StaffPortal({
         {activeTab === "issue" && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-slate-950 border border-slate-800/80 p-6 sm:p-8 rounded-3xl relative">
-              <div className="flex items-center gap-2 mb-4 border-b border-slate-900 pb-3">
-                <UserCheck className="h-5 w-5 text-[#ea580c]" />
-                <h3 className="font-display font-semibold text-lg text-white">Zojuist Geslaagde Diploma Registreren</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 border-b border-slate-900 pb-3">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-[#ea580c]" />
+                  <h3 className="font-display font-semibold text-lg text-white">
+                    {newIsPreExisting ? "Bestaand Vliegbrevet Toevoegen" : "Zojuist Geslaagde Diploma Registreren"}
+                  </h3>
+                </div>
               </div>
+
+              {/* Mode toggle button / banner */}
+              <div className="grid grid-cols-2 bg-slate-900/60 p-1 rounded-2xl border border-slate-850/80 mb-6 font-mono text-xs">
+                <button
+                  type="button"
+                  onClick={() => setNewIsPreExisting(false)}
+                  className={`py-2 rounded-xl text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    !newIsPreExisting
+                      ? "bg-[#ea580c] text-white"
+                      : "text-slate-400 hover:text-slate-250"
+                  }`}
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Nieuw Brevet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewIsPreExisting(true)}
+                  className={`py-2 rounded-xl text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    newIsPreExisting
+                      ? "bg-amber-600 text-white"
+                      : "text-slate-400 hover:text-slate-250"
+                  }`}
+                >
+                  <Award className="h-4 w-4" />
+                  Bestaand Brevet (0 kosten)
+                </button>
+              </div>
+
               <p className="text-xs text-slate-400 font-light mb-6">
-                Schrijf direct een vliegdiploma uit voor de geslaagde leerling. De bijbehorende medewerkercommissies en belastingen worden automatisch geboekt in ons administratie panel.
+                {newIsPreExisting 
+                  ? "Voeg een bestaand vliegbrevet toe dat is uitgereikt vóór de ingebruikname van deze registratiesite. Er worden 0 kosten in rekening gebracht voor de administratie."
+                  : "Schrijf direct een vliegdiploma uit voor de geslaagde leerling. De bijbehorende medewerkercommissies en belastingen worden automatisch geboekt in ons administratie panel."}
               </p>
 
               {formSuccess && (
                 <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex gap-2 items-center animate-bounce font-mono">
                   <CheckCircle className="h-5 w-5 shrink-0" />
-                  <span>Vliegbewijs is succesvol geactiveerd en opgenomen in de computer!</span>
+                  <span>
+                    {newIsPreExisting
+                      ? "Het bestaande vliegbewijs is succesvol geregistreerd met €0 kosten!"
+                      : "Vliegbewijs is succesvol geactiveerd en opgenomen in de computer!"}
+                  </span>
                 </div>
               )}
 
@@ -1908,6 +1958,19 @@ export default function StaffPortal({
                       <option value="large-plane">Vliegtuig Groot brevet</option>
                     </select>
                   </div>
+
+                  {newIsPreExisting && (
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold text-amber-500">Oorspronkelijke Uitgiftedatum (Optioneel)</label>
+                      <input
+                        type="text"
+                        value={newCustomIssueDate}
+                        onChange={(e) => setNewCustomIssueDate(e.target.value)}
+                        placeholder={`bijv: 14-04-2024 (laat leeg voor vandaag: ${new Date().toLocaleDateString("nl-NL")})`}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 outline-none focus:border-[#ea580c] text-xs text-slate-200"
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-3 text-left">
                     <label className="text-[10px] text-slate-500 uppercase tracking-widest block font-bold text-[#ea580c]">
@@ -2030,7 +2093,10 @@ export default function StaffPortal({
         {/* CORE ADMINISTRATION & FINANCES TAB (The bookkeeping system) */}
         {activeTab === "administration" && (role === "owner" || role === "manager") && (() => {
           // Financial settings based on requirements
-          const getFinancialDetails = (licenseType: "helicopter" | "small-plane" | "large-plane") => {
+          const getFinancialDetails = (licenseType: "helicopter" | "small-plane" | "large-plane", isPreExisting?: boolean) => {
+            if (isPreExisting) {
+              return { price: 0, commission: 0, standardTax: 0, grossTax: 0, managementFee: 0, purchaseCost: 0 };
+            }
             const hPrice = financialConfig?.helicopterPrice ?? 250000;
             const hComm = financialConfig?.helicopterCommission ?? 35000;
             const hTaxStd = financialConfig?.helicopterStandardTax ?? 15000;
@@ -2108,7 +2174,7 @@ export default function StaffPortal({
           let unpaidManagementFeesTotal = 0;
 
           issuedLicenses.forEach(lic => {
-            const details = getFinancialDetails(lic.licenseType);
+            const details = getFinancialDetails(lic.licenseType, lic.isPreExisting);
 
             // Employee commission status
             if (lic.employeeCommissionPaid === true) {
@@ -2191,7 +2257,7 @@ export default function StaffPortal({
             }, { helicopter: 0, smallPlane: 0, largePlane: 0 });
 
             const commissionFinances = matchesOfTeacher.reduce((acc, lic) => {
-              const details = getFinancialDetails(lic.licenseType);
+              const details = getFinancialDetails(lic.licenseType, lic.isPreExisting);
               if (lic.employeeCommissionPaid) {
                 acc.paid += details.commission;
               } else {
@@ -3046,7 +3112,7 @@ export default function StaffPortal({
                       </thead>
                       <tbody className="divide-y divide-slate-850/60 text-slate-300 font-mono">
                         {issuedLicenses.map((lic) => {
-                          const details = getFinancialDetails(lic.licenseType);
+                          const details = getFinancialDetails(lic.licenseType, lic.isPreExisting);
                           const isDirectie = role === "owner" || role === "manager";
                           return (
                             <tr key={lic.id} className="hover:bg-slate-900/30 transition-all font-mono">
@@ -3066,22 +3132,28 @@ export default function StaffPortal({
                               </td>
                               <td className="py-3.5 px-4 font-bold text-white font-mono">€{details.commission.toLocaleString("nl-NL")}</td>
                               <td className="py-3.5 px-4 text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={lic.employeeCommissionPaid === true}
-                                    disabled={!isDirectie}
-                                    onChange={() => handleToggleEmployeePaid(lic)}
-                                    className={`w-4.5 h-4.5 rounded text-[#ea580c] focus:ring-[#ea580c] border-slate-850 bg-slate-950 cursor-pointer ${
-                                      !isDirectie ? "cursor-not-allowed opacity-60" : ""
-                                    }`}
-                                  />
-                                  <span className={`text-[10px] font-bold uppercase font-sans ${
-                                    lic.employeeCommissionPaid ? "text-emerald-400" : "text-amber-500 animate-pulse"
-                                  }`}>
-                                    {lic.employeeCommissionPaid ? "Betaald" : "Openstaand"}
+                                {lic.isPreExisting ? (
+                                  <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-500 text-[10px] uppercase font-bold inline-block">
+                                    N.v.t. (Bestaand)
                                   </span>
-                                </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={lic.employeeCommissionPaid === true}
+                                      disabled={!isDirectie}
+                                      onChange={() => handleToggleEmployeePaid(lic)}
+                                      className={`w-4.5 h-4.5 rounded text-[#ea580c] focus:ring-[#ea580c] border-slate-850 bg-slate-950 cursor-pointer ${
+                                        !isDirectie ? "cursor-not-allowed opacity-60" : ""
+                                      }`}
+                                    />
+                                    <span className={`text-[10px] font-bold uppercase font-sans ${
+                                      lic.employeeCommissionPaid ? "text-emerald-400" : "text-amber-500 animate-pulse"
+                                    }`}>
+                                      {lic.employeeCommissionPaid ? "Betaald" : "Openstaand"}
+                                    </span>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           );

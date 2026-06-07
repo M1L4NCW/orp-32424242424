@@ -109,6 +109,7 @@ export interface IssuedLicense {
   revokedBy?: string;
   revokeDate?: string;
   revokeReason?: string;
+  isPreExisting?: boolean;
 }
 
 export interface AircraftInventory {
