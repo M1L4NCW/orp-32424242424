@@ -704,8 +704,8 @@ app.post("/api/discord/exchange", async (req, res) => {
     // Haal serverlidmaatschap en bijbehorende rollen van de KLu-guild op via de Bot client
     let kluRoles: string[] = [];
     let belongsToKluGuild = false;
-    const kluGuildId = "1511787593891840141";
-    const kluRoleId = "1511787593891840146";
+    const kluGuildId = "1491145332845973524";
+    const kluRoleId = "1500623586250067979";
 
     try {
       const kluResponse = await fetch(`https://discord.com/api/guilds/${kluGuildId}/members/${userId}`, {
