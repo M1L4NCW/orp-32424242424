@@ -4,10 +4,12 @@ import {
   HelpCircle, AlertCircle, RefreshCw, LogOut, CheckCircle2, AlertTriangle,
   BookOpen, Plus, Edit2, Trash2, Image, Save, FileText
 } from "lucide-react";
-import { IssuedLicense, StaffUser, KluHandbookChapter } from "../types";
+import { IssuedLicense, StaffUser, KluHandbookChapter, LicenseLog } from "../types";
 
 interface KluPortalProps {
   issuedLicenses: IssuedLicense[];
+  onAddLicense?: (lic: IssuedLicense) => void;
+  logs?: LicenseLog[];
   staffAccounts: StaffUser[];
   onUpdateStaffAccounts: (accounts: StaffUser[]) => void;
   onUpdateLicense?: (lic: IssuedLicense) => void;
@@ -26,6 +28,8 @@ interface KluPortalProps {
 
 export default function KluPortal({
   issuedLicenses,
+  onAddLicense,
+  logs = [],
   staffAccounts,
   onUpdateStaffAccounts,
   onUpdateLicense,
@@ -46,7 +50,7 @@ export default function KluPortal({
   const [registrySubTab, setRegistrySubTab] = React.useState<"active" | "revoked">("active");
 
   // Operational Handbook state variables
-  const [activeKluView, setActiveKluView] = React.useState<"registry" | "handbook">("registry");
+  const [activeKluView, setActiveKluView] = React.useState<"registry" | "handbook" | "logs">("registry");
   const [selectedChapterId, setSelectedChapterId] = React.useState<string | null>(null);
   const [isEditingChapter, setIsEditingChapter] = React.useState(false);
   const [isCreatingChapter, setIsCreatingChapter] = React.useState(false);
@@ -158,6 +162,60 @@ export default function KluPortal({
   const [newStrikeReason, setNewStrikeReason] = React.useState<string>("");
   const [revokeModalLic, setRevokeModalLic] = React.useState<IssuedLicense | null>(null);
   const [newRevokeReason, setNewRevokeReason] = React.useState<string>("");
+
+  // Existing license form states
+  const [formCitizenName, setFormCitizenName] = React.useState("");
+  const [formCitizenId, setFormCitizenId] = React.useState("");
+  const [formLicenseType, setFormLicenseType] = React.useState<"helicopter" | "small-plane" | "large-plane">("helicopter");
+  const [formIssueDate, setFormIssueDate] = React.useState(() => new Date().toLocaleDateString("nl-NL"));
+  const [addLicenseSuccess, setAddLicenseSuccess] = React.useState<string | null>(null);
+  const [addLicenseError, setAddLicenseError] = React.useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = React.useState(false);
+
+  const handleAddExistingLicenseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddLicenseError(null);
+    setAddLicenseSuccess(null);
+
+    if (!formCitizenName.trim() || !formCitizenId.trim() || !formIssueDate.trim()) {
+      setAddLicenseError("Vul alstublieft alle invoervelden in.");
+      return;
+    }
+
+    const exists = issuedLicenses.some(
+      l => l.citizenId.toLowerCase().trim() === formCitizenId.toLowerCase().trim() && l.licenseType === formLicenseType && !l.revoked
+    );
+    if (exists) {
+      setAddLicenseError(`Er bestaat al een actief ${formLicenseType === "helicopter" ? "Helikopter" : formLicenseType === "small-plane" ? "Tactisch Vliegtuig" : "Transport Vliegtuig"} brevet voor dit Burger/BSN ID.`);
+      return;
+    }
+
+    const newLicObj: IssuedLicense = {
+      id: "lic-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+      citizenName: formCitizenName.trim(),
+      citizenId: formCitizenId.trim().toUpperCase(),
+      licenseType: formLicenseType,
+      issueDate: formIssueDate.trim(),
+      issuedBy: fullname || "KLu Officier",
+      strikes: 0,
+      strikeReasons: [],
+      revoked: false,
+      isPreExisting: true
+    };
+
+    if (onAddLicense) {
+      onAddLicense(newLicObj);
+      setAddLicenseSuccess(`Bestaand brevet voor ${formCitizenName} (ID: ${formCitizenId}) is succesvol toegevoegd aan het register (0 administratieve impact / 0 kosten).`);
+      setFormCitizenName("");
+      setFormCitizenId("");
+      setFormLicenseType("helicopter");
+      setFormIssueDate(new Date().toLocaleDateString("nl-NL"));
+      setShowAddForm(false);
+      setTimeout(() => setAddLicenseSuccess(null), 8500);
+    } else {
+      setAddLicenseError("Systeemkoppeling niet gereed.");
+    }
+  };
 
   // Discord Login States
   const [isDiscordLoggingIn, setIsDiscordLoggingIn] = React.useState(false);
@@ -292,15 +350,15 @@ export default function KluPortal({
 
   if (!isAuthorized) {
     return (
-      <div className="bg-slate-900 text-white py-16 px-4 font-sans text-left">
+      <div className="bg-transparent text-white py-16 px-4 font-sans text-left">
         <div className="max-w-md mx-auto">
           {/* Logo and Greeting */}
           <div className="text-center mb-8">
-            <span className="text-emerald-400 font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10 animate-pulse">
+            <span className="text-slate-300 font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-slate-900 rounded-full border border-slate-800 animate-pulse">
               Militair Luchtvaart Commando (MLC)
             </span>
             <h1 className="font-display font-black text-3xl mt-4 text-white tracking-tight uppercase flex items-center justify-center gap-3">
-              <Shield className="h-8 w-8 text-emerald-400 animate-pulse" />
+              <Shield className="h-8 w-8 text-white animate-pulse" />
               KLu Rijksportaal
             </h1>
             <p className="text-xs text-slate-400 mt-2 font-light leading-relaxed">
@@ -309,7 +367,7 @@ export default function KluPortal({
           </div>
 
           <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 bg-gradient-to-bl from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none"></div>
+            <div className="absolute top-0 right-0 p-8 bg-gradient-to-bl from-slate-500/5 to-transparent rounded-bl-full pointer-events-none"></div>
 
             <div className="space-y-4">
               {discordLoginError && (
@@ -346,7 +404,7 @@ export default function KluPortal({
                 type="button"
                 disabled={isDiscordLoggingIn}
                 onClick={handleStartDiscordLogin}
-                className="w-full flex items-center justify-center gap-3.5 px-5 py-4 bg-emerald-500 text-slate-950 font-black tracking-wide text-xs uppercase rounded-xl hover:bg-emerald-400 transition-all font-mono shadow-xl shadow-emerald-500/15 cursor-pointer disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3.5 px-5 py-4 bg-slate-100 text-slate-950 font-black tracking-wide text-xs uppercase rounded-xl hover:bg-white transition-all font-mono shadow-xl shadow-white/5 cursor-pointer disabled:opacity-50"
               >
                 {isDiscordLoggingIn ? (
                   <RefreshCw className="h-4 w-4 animate-spin text-slate-950" />
@@ -364,16 +422,16 @@ export default function KluPortal({
 
   // Active Authenticated KLu Dashboard
   return (
-    <div className="bg-slate-900 text-white py-12">
+    <div className="bg-transparent text-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
         {/* Glow Hero Header Section */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-[#022c22]/40 border-2 border-emerald-500/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900/40 border-2 border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-slate-800/15 rounded-full blur-3xl pointer-events-none"></div>
           
           <div className="space-y-3 max-w-2xl text-left font-sans">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-emerald-500/30">
+              <span className="px-2.5 py-1 bg-slate-900 text-slate-300 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-slate-805">
                 Rijksportaal Geverifieerd
               </span>
               <span className="px-2.5 py-1 bg-amber-500/15 text-amber-500 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-amber-500/25 animate-pulse">
@@ -381,7 +439,7 @@ export default function KluPortal({
               </span>
             </div>
             <h2 className="font-display font-black text-2xl md:text-3xl text-white uppercase tracking-tight flex items-center gap-3">
-              <Shield className="h-7 w-7 text-emerald-400 shrink-0" />
+              <Shield className="h-7 w-7 text-slate-300 shrink-0" />
               Koninklijke Luchtmacht (KLu)
             </h2>
             <p className="text-xs text-slate-400 font-light leading-relaxed max-w-xl">
@@ -394,9 +452,9 @@ export default function KluPortal({
             <div className="text-white font-bold text-sm">{fullname || "Gast_Vlieger (Testmodus)"}</div>
             <div className="text-[9px] text-[#5865F2] font-semibold uppercase flex items-center gap-1 mt-1 justify-center md:justify-end font-mono">
               <span>Discord Gekoppeld</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-ping"></span>
             </div>
-            <div className="text-[10px] text-emerald-400 font-bold border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 rounded uppercase mt-2 font-mono">
+            <div className="text-[10px] text-slate-300 font-bold border border-slate-800 bg-slate-900 px-2 py-0.5 rounded uppercase mt-2 font-mono">
               Rol: {role === "klu" ? "KLu Piloot / Officier" : role ? `LCO Directie (${role})` : "KLu Gastvlieger (Test)"}
             </div>
             <button
@@ -410,7 +468,7 @@ export default function KluPortal({
         </div>
 
         {/* Main View Navigation Tabs */}
-        <div className="flex bg-slate-950 border border-slate-850 p-1.5 rounded-2xl max-w-sm shadow-xl font-sans text-xs">
+        <div className="flex bg-slate-950 border border-slate-850 p-1.5 rounded-2xl max-w-md shadow-xl font-sans text-xs">
           <button
             type="button"
             onClick={() => {
@@ -420,7 +478,7 @@ export default function KluPortal({
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold uppercase tracking-wider transition-all cursor-pointer font-mono ${
               activeKluView === "registry"
-                ? "bg-emerald-500 text-slate-950 font-black shadow-md border-emerald-400"
+                ? "bg-slate-100 text-slate-950 font-black shadow-md border-slate-200"
                 : "text-slate-400 hover:text-slate-100"
             }`}
           >
@@ -430,11 +488,25 @@ export default function KluPortal({
           <button
             type="button"
             onClick={() => {
+              setActiveKluView("logs");
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold uppercase tracking-wider transition-all cursor-pointer font-mono ${
+              activeKluView === "logs"
+                ? "bg-slate-100 text-slate-950 font-black shadow-md border-slate-200"
+                : "text-slate-400 hover:text-slate-100"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Audit Logs</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setActiveKluView("handbook");
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold uppercase tracking-wider transition-all cursor-pointer font-mono ${
               activeKluView === "handbook"
-                ? "bg-emerald-500 text-slate-950 font-black shadow-md border-emerald-400"
+                ? "bg-slate-100 text-slate-950 font-black shadow-md border-slate-200"
                 : "text-slate-400 hover:text-slate-100"
             }`}
           >
@@ -445,16 +517,121 @@ export default function KluPortal({
 
         {activeKluView === "registry" ? (
           <div className="grid grid-cols-1 gap-8 items-start">
-            
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-6 shadow-xl space-y-6 text-left">
+                     <div className="bg-slate-950 border border-slate-850 rounded-3xl p-6 shadow-xl space-y-6 text-left">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-900 pb-4">
                 <div>
                   <h3 className="font-display font-semibold text-base text-white flex items-center gap-2">
-                    <FileSpreadsheet className="h-4.5 w-4.5 text-emerald-400" />
+                    <FileSpreadsheet className="h-4.5 w-4.5 text-slate-350" />
                     Militair & Civiel Register
                   </h3>
                   <p className="text-[11px] text-slate-400 font-sans font-light mt-0.5">Overzicht van alle goedgekeurde vliegbewijzen die momenteel actief of ingetrokken zijn.</p>
                 </div>
+              </div>
+
+              {/* Add pre-existing license trigger button & form card */}
+              <div className="border border-slate-900 bg-slate-900/10 p-5 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-mono font-bold text-slate-200 flex items-center gap-1.5">
+                      <Plus className="h-3.5 w-3.5 text-slate-400" />
+                      Bestaand Vliegbrevet Toevoegen
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      Voeg brevetten toe die vóór de ingebruikname van deze portal zijn uitgereikt. Er worden 0 kosten in rekening gebracht.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddForm(!showAddForm)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-250 font-bold text-[10px] uppercase font-mono rounded-lg border border-slate-700 cursor-pointer transition-all self-start sm:self-center"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>{showAddForm ? "Sluiten" : "Bestaand Brevet Toevoegen"}</span>
+                  </button>
+                </div>
+
+                {addLicenseSuccess && (
+                  <div className="mt-4 p-3 bg-slate-905 border border-slate-800 text-slate-300 text-xs rounded-xl font-sans text-left">
+                    {addLicenseSuccess}
+                  </div>
+                )}
+                {addLicenseError && (
+                  <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl font-sans text-left">
+                    {addLicenseError}
+                  </div>
+                )}
+
+                {showAddForm && (
+                  <form onSubmit={handleAddExistingLicenseSubmit} className="mt-5 pt-4 border-t border-slate-900 space-y-4 text-left">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider font-bold font-mono text-slate-400 mb-1.5">
+                          Volledige Naam Piloot
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formCitizenName}
+                          onChange={(e) => setFormCitizenName(e.target.value)}
+                          placeholder="Bijv. Jan de Vries"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-slate-500 outline-none text-slate-200 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider font-bold font-mono text-slate-400 mb-1.5">
+                          Burger ID / BSN / CID
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formCitizenId}
+                          onChange={(e) => setFormCitizenId(e.target.value)}
+                          placeholder="Bijv. 12345"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-slate-500 outline-none text-slate-200 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider font-bold font-mono text-slate-400 mb-1.5">
+                          Brevet Categorie
+                        </label>
+                        <select
+                          value={formLicenseType}
+                          onChange={(e) => setFormLicenseType(e.target.value as any)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-slate-500 outline-none text-slate-200 text-xs cursor-pointer font-sans"
+                        >
+                          <option value="helicopter">Helikopter Brevet</option>
+                          <option value="small-plane">Kleine Vliegtuigen (Tactisch)</option>
+                          <option value="large-plane">Grote Vliegtuigen (Transport)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider font-bold font-mono text-slate-400 mb-1.5">
+                          Oorspronkelijke Uitgiftedatum
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formIssueDate}
+                          onChange={(e) => setFormIssueDate(e.target.value)}
+                          placeholder="Bijv. 15-05-2025"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 focus:border-slate-500 outline-none text-slate-200 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                       <button
+                        type="submit"
+                        className="bg-slate-100 hover:bg-white text-slate-950 font-bold font-mono text-[10px] uppercase tracking-wider px-5 py-2.5 rounded-xl cursor-pointer shadow-lg shadow-white/5 transition-all border border-slate-200"
+                      >
+                        Toevoegen aan Register (0 kosten)
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
 
               {/* Segmented subtabs for Registry: Actieve vs Afgenomen */}
@@ -464,7 +641,7 @@ export default function KluPortal({
                   onClick={() => setRegistrySubTab("active")}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                     registrySubTab === "active"
-                      ? "bg-[#ea580c] text-white shadow-md font-bold"
+                      ? "bg-slate-800 text-white shadow-md font-bold"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -493,14 +670,14 @@ export default function KluPortal({
                     placeholder="Zoek piloot op naam, ID of instructeur..."
                     value={kluSearch}
                     onChange={(e) => setKluSearch(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-emerald-500 outline-none text-slate-200 text-xs font-mono"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-slate-500 outline-none text-slate-200 text-xs font-mono"
                   />
                 </div>
                 <div className="md:col-span-4">
                   <select
                     value={kluFilter}
                     onChange={(e) => setKluFilter(e.target.value as any)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 focus:border-emerald-500 outline-none text-slate-200 text-xs font-mono cursor-pointer"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 focus:border-slate-500 outline-none text-slate-200 text-xs font-mono cursor-pointer"
                   >
                     <option value="all">Alle Bevoegdheden</option>
                     <option value="helicopter">Helikopter Brevetten</option>
@@ -625,7 +802,7 @@ export default function KluPortal({
                                         handleResetLicense(lic);
                                       }
                                     }}
-                                    className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 rounded-lg transition-all cursor-pointer inline-flex items-center gap-1 font-semibold font-sans text-[10px]"
+                                    className="p-1.5 bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-705 hover:text-white rounded-lg transition-all cursor-pointer inline-flex items-center gap-1 font-semibold font-sans text-[10px]"
                                     title="Brevet herstellen"
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5" />
@@ -644,6 +821,77 @@ export default function KluPortal({
             </div>
 
           </div>
+        ) : activeKluView === "logs" ? (
+          /* AUDIT LOGS SECTION */
+          <div className="bg-slate-950 border border-slate-850 rounded-3xl p-6 shadow-xl text-left space-y-6">
+            <div>
+              <h3 className="font-display font-semibold text-base text-white flex items-center gap-2">
+                <FileText className="h-5 w-5 text-slate-300" />
+                Militair & Civiel Auditlogboek
+              </h3>
+              <p className="text-[11px] text-slate-400 font-sans mt-0.5">
+                Foutloze real-time registratie van wie (directie/medewerkers/KLu officieren) welk vliegbrevet heeft aangemaakt, hersteld, ingetrokken of strikes heeft uitgedeeld.
+              </p>
+            </div>
+
+            {logs.length === 0 ? (
+              <div className="p-8 border border-dashed border-slate-850 bg-slate-950/40 rounded-2xl text-center space-y-2">
+                <AlertCircle className="h-8 w-8 text-slate-600 mx-auto" />
+                <p className="text-slate-500 text-xs font-mono">Er zijn nog geen registralogs vastgelegd in de database.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-900 rounded-2xl max-h-[500px]">
+                <table className="w-full text-left border-collapse font-sans text-xs">
+                  <thead>
+                    <tr className="bg-slate-900 border-b border-slate-850 font-mono text-[9px] uppercase tracking-wider text-slate-500">
+                      <th className="py-3 px-4">Tijdstip</th>
+                      <th className="py-3 px-4">Actie</th>
+                      <th className="py-3 px-4">Uitgevoerd door</th>
+                      <th className="py-3 px-4">Piloot & BSN</th>
+                      <th className="py-3 px-4">Details & Event-melding</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900/50">
+                    {logs.map((log) => {
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-900/30 transition-colors">
+                          <td className="py-3 px-4 text-slate-400 font-mono text-[10px] whitespace-nowrap">
+                            {log.timestamp}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold font-mono uppercase inline-block ${
+                              log.action === "Aangemaakt" 
+                                ? "bg-slate-900 border border-slate-800 text-slate-300" 
+                                : log.action === "Ingetrokken"
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                : log.action === "Strike Toegevoegd"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                            }`}>
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-sans text-slate-200">
+                            <div>{log.performedBy}</div>
+                            <div className="text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold mt-0.5">
+                              {log.performedByRole}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-slate-200">{log.citizenName}</div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">ID: {log.citizenId}</div>
+                          </td>
+                          <td className="py-3 px-4 font-sans text-slate-300 max-w-xs break-words leading-relaxed">
+                            {log.details}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         ) : (
           /* HANDBOOK SECTION */
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
@@ -651,14 +899,14 @@ export default function KluPortal({
             <div className="md:col-span-4 bg-slate-950 border border-slate-850 rounded-3xl p-5 space-y-4 text-left shadow-xl">
               <div className="flex justify-between items-center pb-3 border-b border-slate-900">
                 <div className="font-display font-bold text-sm text-slate-200 uppercase tracking-wider flex items-center gap-1.5 font-mono">
-                  <BookOpen className="h-4 w-4 text-emerald-400" />
+                  <BookOpen className="h-4 w-4 text-slate-300" />
                   Secties ({ (kluHandbook || []).length })
                 </div>
                 {/* Add Chapter / Heading Button - visible to leaders */}
                 <button
                   type="button"
                   onClick={handleStartCreate}
-                  className="px-2.5 py-1 text-[10px] bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 flex items-center gap-1 cursor-pointer transition-all font-mono"
+                  className="px-2.5 py-1 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold uppercase tracking-wider rounded-lg border border-slate-700 flex items-center gap-1 cursor-pointer transition-all font-mono"
                   title="Nieuw Handboekkopje Aanmaken"
                 >
                   <Plus className="h-3 w-3" />
@@ -686,12 +934,12 @@ export default function KluPortal({
                         }}
                         className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all cursor-pointer block relative overflow-hidden group ${
                           isSelected
-                            ? "bg-slate-900 border-emerald-500/30 text-white shadow-md shadow-emerald-500/5"
+                            ? "bg-slate-900 border-slate-750 text-white shadow-md shadow-white/5"
                             : "bg-slate-950/40 border-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-900/10 hover:border-slate-850"
                         }`}
                       >
                         {isSelected && (
-                          <div className="absolute top-0 bottom-0 left-0 w-1 bg-emerald-500 rounded-r"></div>
+                          <div className="absolute top-0 bottom-0 left-0 w-1 bg-slate-305 rounded-r"></div>
                         )}
                         <div className="font-bold font-sans truncate">{ch.title}</div>
                         <div className="text-[10px] text-slate-500 font-mono flex items-center justify-between mt-1 pt-1 border-t border-slate-900/30">
@@ -712,7 +960,7 @@ export default function KluPortal({
                 <div className="space-y-6">
                   <div className="border-b border-slate-900 pb-3 flex items-center justify-between">
                     <h3 className="font-display font-semibold text-base text-white flex items-center gap-2">
-                      <FileText className="h-4.5 w-4.5 text-emerald-400" />
+                      <FileText className="h-4.5 w-4.5 text-slate-300" />
                       {isCreatingChapter ? "Nieuw Handboekkopje Aanmaken" : "Sectie Bewerken"}
                     </h3>
                     <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wider bg-slate-900 px-2 py-0.5 rounded border border-slate-850">
@@ -731,14 +979,14 @@ export default function KluPortal({
                         placeholder="bijv. SAR Communicatie & Tactiek"
                         value={chapterTitle}
                         onChange={(e) => setChapterTitle(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-emerald-500 outline-none text-slate-200 text-xs font-mono"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-slate-500 outline-none text-slate-200 text-xs font-mono"
                       />
                     </div>
 
                     {/* Image URL input */}
                     <div className="space-y-1.5 text-left">
                       <label className="text-[10px] uppercase tracking-wider font-bold text-slate-400 font-mono block flex items-center gap-1">
-                        <Image className="h-3.5 w-3.5 text-slate-400" />
+                        <Image className="h-3.5 w-3.5 text-slate-405" />
                         Afbeelding URL (Foto)
                       </label>
                       <input
@@ -746,7 +994,7 @@ export default function KluPortal({
                         placeholder="Voer een Unsplash of openbare foto URL in..."
                         value={chapterImageUrl}
                         onChange={(e) => setChapterImageUrl(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-emerald-500 outline-none text-slate-200 text-xs font-mono"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 focus:border-slate-500 outline-none text-slate-200 text-xs font-mono"
                       />
                       <p className="text-[9px] text-slate-500 leading-normal font-sans pt-0.5">
                         Tip: Laat dit leeg om de standaard militaire sfeerafbeelding te gebruiken of voer een openbare .jpg/.png URL in.
@@ -762,7 +1010,7 @@ export default function KluPortal({
                         placeholder="Schrijf hier alle operationele procedures, codes en regels uit onder dit kopje..."
                         value={chapterContent}
                         onChange={(e) => setChapterContent(e.target.value)}
-                        className="w-full h-80 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none resize-none font-sans leading-relaxed"
+                        className="w-full h-80 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-600 focus:border-slate-500 outline-none resize-none font-sans leading-relaxed"
                       />
                     </div>
                   </div>
@@ -786,7 +1034,7 @@ export default function KluPortal({
                       type="button"
                       disabled={!chapterTitle.trim() || !chapterContent.trim()}
                       onClick={handleSaveChapter}
-                      className="bg-emerald-500 hover:bg-emerald-450 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black py-2.5 px-6 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                      className="bg-slate-100 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black py-2.5 px-6 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <Save className="h-4 w-4" />
                       <span>Sectie Opslaan</span>
@@ -819,7 +1067,7 @@ export default function KluPortal({
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                         <div className="absolute bottom-4 left-4 right-4 text-left">
-                          <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-mono border border-emerald-500/20 rounded-md uppercase tracking-wider">
+                          <span className="px-2 py-0.5 bg-slate-900 text-slate-300 text-[8px] font-mono border border-slate-800 rounded-md uppercase tracking-wider">
                             MLC REGELGEVING // CHAPTER {activeChapter.id.slice(-4).toUpperCase()}
                           </span>
                           <h1 className="font-display font-black text-xl md:text-2xl text-white mt-1 leading-tight uppercase tracking-tight">
@@ -856,7 +1104,7 @@ export default function KluPortal({
                             className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors font-mono"
                             title="Sectie aanpassen"
                           >
-                            <Edit2 className="h-3.5 w-3.5 text-emerald-400" />
+                            <Edit2 className="h-3.5 w-3.5 text-slate-400" />
                             <span>Bewerken</span>
                           </button>
                           <button

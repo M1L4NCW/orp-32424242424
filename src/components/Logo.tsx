@@ -35,12 +35,12 @@ export default function Logo({ className = "", showText = true, size = "md" }: L
           {/* Dynamic flight path tail sweep */}
           <path
             d="M 20,95 C 20,40 85,15 145,20 C 185,24 165,55 125,70 C 80,85 30,125 10,105"
-            fill="#ea580c"
+            fill="#94a3b8"
             className="opacity-20"
           />
 
-          {/* Circular Sun (Aruba Sunset Orange) */}
-          <circle cx="100" cy="98" r="62" fill="#ea580c" />
+          {/* Circular Sun (Modern Titanium Gray) */}
+          <circle cx="100" cy="98" r="62" fill="#334155" />
 
           {/* Runway leading to the sunset horizon */}
           <path
@@ -64,10 +64,10 @@ export default function Logo({ className = "", showText = true, size = "md" }: L
             strokeWidth="1.5"
           />
           {/* Hangar windows & lines */}
-          <rect x="53" y="118" width="8" height="6" rx="1" fill="#ea580c" className="opacity-80" />
-          <rect x="65" y="117" width="8" height="6" rx="1" fill="#ea580c" className="opacity-80" />
-          <rect x="77" y="116" width="8" height="6" rx="1" fill="#ea580c" className="opacity-80" />
-          <rect x="89" y="115" width="8" height="6" rx="1" fill="#ea580c" className="opacity-80" />
+          <rect x="53" y="118" width="8" height="6" rx="1" fill="#cbd5e1" className="opacity-80" />
+          <rect x="65" y="117" width="8" height="6" rx="1" fill="#cbd5e1" className="opacity-80" />
+          <rect x="77" y="116" width="8" height="6" rx="1" fill="#cbd5e1" className="opacity-80" />
+          <rect x="89" y="115" width="8" height="6" rx="1" fill="#cbd5e1" className="opacity-80" />
           {/* Door of the hangar */}
           <path d="M 104,115 H 132 V 135 H 104 Z" fill="#0f172a" />
           <path d="M 108,124 L 118,120 L 128,124" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" />
@@ -113,7 +113,7 @@ export default function Logo({ className = "", showText = true, size = "md" }: L
             <circle cx="18" cy="10" r="3" fill="#0f172a" />
             <line x1="18" y1="4" x2="18" y2="9" stroke="#0f172a" strokeWidth="2.5" />
             {/* Propeller nose cone and spinning blur */}
-            <ellipse cx="33" cy="2" rx="2" ry="7" fill="#ea580c" />
+            <ellipse cx="33" cy="2" rx="2" ry="7" fill="#cbd5e1" />
             <circle cx="33" cy="2" r="1.5" fill="#f8fafc" />
             <ellipse cx="33" cy="2" rx="1" ry="16" fill="#f8fafc" className="opacity-45" stroke="#0f172a" strokeWidth="0.5" />
           </g>
@@ -123,14 +123,14 @@ export default function Logo({ className = "", showText = true, size = "md" }: L
       {showText && (
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
-            <span className="font-display font-black text-[13px] sm:text-lg tracking-wider block leading-none text-[#ea580c]">
+            <span className="font-display font-black text-[13px] sm:text-lg tracking-wider block leading-none text-slate-300">
               LUCHTVAART CENTRUM
             </span>
           </div>
           <span className="font-display font-extrabold text-[15px] sm:text-xl tracking-widest text-white block uppercase leading-none mt-0.5">
             ORANJESTAD
           </span>
-          <span className="font-sans font-medium text-[8px] sm:text-[9px] tracking-widest text-[#ea580c] block uppercase mt-1">
+          <span className="font-sans font-medium text-[8px] sm:text-[9px] tracking-widest text-slate-400 block uppercase mt-1">
             VLIEGSCHOOL • DEALERSHIP • TRAININGEN
           </span>
         </div>

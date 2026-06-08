@@ -1347,7 +1347,7 @@ export default function StaffPortal({
         <div className="max-w-md mx-auto">
           {/* Logo and Greeting */}
           <div className="text-center mb-8">
-            <span className="text-emerald-400 font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/10">
+            <span className="text-slate-300 font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-slate-900 rounded-full border border-slate-800">
               Uitsluitend voor Medewerkers & KLu Militairen
             </span>
             <h1 className="font-display font-bold text-3xl mt-4 text-white">Rijks- & Stadsportaal</h1>
@@ -1358,7 +1358,7 @@ export default function StaffPortal({
 
           {/* Login box */}
           <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden text-left">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-[#ea580c]"></div>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-white"></div>
                     {discordLoginError && (
               <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs space-y-1 font-light">
                 <div className="flex gap-2 items-start">
@@ -1376,10 +1376,10 @@ export default function StaffPortal({
               type="button"
               disabled={isDiscordLoggingIn}
               onClick={handleStartDiscordLogin}
-              className="w-full bg-[#5865F2] hover:bg-[#5865F2]/90 disabled:bg-[#5865F2]/40 text-white font-bold font-mono py-3 rounded-xl text-xs tracking-wider uppercase transition-all cursor-pointer shadow-lg shadow-[#5865F2]/10 flex items-center justify-center gap-2"
+              className="w-full bg-slate-100 hover:bg-white disabled:opacity-50 text-slate-950 font-bold font-mono py-3 rounded-xl text-xs tracking-wider uppercase transition-all cursor-pointer shadow-lg shadow-white/5 flex items-center justify-center gap-2"
             >
               {isDiscordLoggingIn ? (
-                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div className="h-4 w-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin"></div>
               ) : (
                 <svg className="h-4 w-4 fill-current" viewBox="0 0 127.14 96.36" xmlns="http://www.w3.org/2000/svg">
                   <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.93,54.47,1,77.06a107.4,107.4,0,0,0,32.24,16.3,80.7,80.7,0,0,0,6.84-11.15,68.7,68.7,0,0,1-10.85-5.18c.92-.67,1.8-1.37,2.65-2.1a77,77,0,0,0,70.9,0c.85.73,1.73,1.43,2.65,2.1a68.73,68.73,0,0,1-10.85,5.18,80.7,80.7,0,0,0,6.84,11.15,107.4,107.4,0,0,0,32.24-16.3C129.38,50.92,123.35,28.27,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
@@ -4085,11 +4085,11 @@ export default function StaffPortal({
 
         {/* KLU PORTAL TAB AREA / REDIRECT */}
         {activeTab === "klu" && (role === "owner" || role === "manager" || role === "medewerker" || role === "klu") && (
-          <div className="p-12 border border-dashed border-emerald-500/20 bg-slate-950 rounded-3xl text-center space-y-3 font-sans w-full max-w-2xl mx-auto my-6 text-left">
-            <Shield className="h-8 w-8 text-emerald-400 mx-auto animate-pulse" />
+          <div className="p-12 border border-dashed border-slate-800 bg-slate-950 rounded-3xl text-center space-y-3 font-sans w-full max-w-2xl mx-auto my-6 text-left">
+            <Shield className="h-8 w-8 text-slate-300 mx-auto animate-pulse" />
             <h4 className="font-semibold text-white text-center text-sm">KLu Rijksportaal is verplaatst</h4>
             <p className="text-slate-400 text-xs text-center max-w-md mx-auto leading-relaxed">
-              Het MLC Militaire Rijksportaal bevindt zich nu in zijn eigen, onafhankelijke hoofd-segment bovenaan de navigatiebalk. Klik op <strong className="text-emerald-400">"KLu Rijksportaal"</strong> in het hoofdmenu om het portaal te betreden.
+              Het MLC Militaire Rijksportaal bevindt zich nu in zijn eigen, onafhankelijke hoofd-segment bovenaan de navigatiebalk. Klik op <strong className="text-slate-200">"KLu Rijksportaal"</strong> in het hoofdmenu om het portaal te betreden.
             </p>
           </div>
         )}
@@ -4105,22 +4105,22 @@ export default function StaffPortal({
           return false && (() => {
             return (
             <div className="space-y-8 animate-fade-in font-mono text-xs text-slate-300">
-              {/* Glowing Hero Section */}
-              <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-[#022c22]/40 border-2 border-emerald-500/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-                {/* Glowing target effect */}
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+               {/* Glowing Hero Section */}
+              <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900/40 border-2 border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+                 {/* Glowing target effect */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-slate-800/10 rounded-full blur-3xl pointer-events-none"></div>
                 
                 <div className="space-y-3 max-w-2xl text-left font-sans">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-emerald-500/30">
-                      Rijksportaal Actief
+                    <span className="px-2.5 py-1 bg-slate-900 text-slate-300 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-slate-805">
+                       Rijksportaal Actief
                     </span>
                     <span className="px-2.5 py-1 bg-amber-500/15 text-amber-500 font-sans font-bold uppercase tracking-widest text-[9px] rounded-full border border-amber-500/25 animate-pulse">
                       DEFCON 4 // NORMAL OPS
                     </span>
                   </div>
                   <h2 className="font-display font-black text-2xl md:text-3xl text-white uppercase tracking-tight flex items-center gap-3">
-                    <Shield className="h-7 w-7 text-emerald-400 shrink-0" />
+                    <Shield className="h-7 w-7 text-slate-300 shrink-0" />
                     Koninklijke Luchtmacht
                   </h2>
                   <p className="text-xs text-slate-400 font-light leading-relaxed max-w-xl">
@@ -4133,9 +4133,9 @@ export default function StaffPortal({
                   <div className="text-white font-bold text-sm">{fullname}</div>
                   <div className="text-[9px] text-[#5865F2] font-semibold uppercase flex items-center gap-1 mt-1 justify-center md:justify-end font-mono">
                     <span>Inlog via Discord</span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-ping"></span>
                   </div>
-                  <div className="text-[10px] text-emerald-400 font-bold border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 rounded uppercase mt-2 font-mono">
+                  <div className="text-[10px] text-slate-350 font-bold border border-slate-800 bg-slate-900 px-2 py-0.5 rounded uppercase mt-2 font-mono">
                     Rol: {role === "klu" ? "KLu Piloot / Officier" : `LCO Directie (${role})`}
                   </div>
                 </div>

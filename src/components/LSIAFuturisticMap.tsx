@@ -36,7 +36,7 @@ export default function LSIAFuturisticMap() {
       status: "Rondvlucht boven LSIA",
       speedKmh: 450,
       altitudeFt: 4200,
-      color: "#ea580c",
+      color: "#e2e8f0",
       x: 350,
       y: 180,
       angle: 120,
@@ -175,14 +175,14 @@ export default function LSIAFuturisticMap() {
       <div>
         <div className="flex justify-between items-center border-b border-slate-900 pb-3">
           <div className="flex items-center space-x-2">
-            <Radio className="h-4 w-4 text-[#ea580c] animate-pulse" />
+            <Radio className="h-4 w-4 text-slate-300 animate-pulse" />
             <span className="font-display font-bold text-xs text-slate-200 tracking-wider font-mono">
               LSIA TACTICAL FLIGHTSPACE • LOS SANTOS
             </span>
           </div>
 
-          <span className="flex items-center gap-1.5 bg-[#ea580c]/10 text-[#ea580c] px-2 py-0.5 rounded-full text-[9px] font-mono border border-[#ea580c]/20 uppercase">
-            Map beweegbaar ⚡
+          <span className="flex items-center gap-1.5 bg-slate-900 text-slate-350 px-2 py-0.5 rounded-full text-[9px] font-mono border border-slate-800 uppercase">
+            Kaart actief 🛸
           </span>
         </div>
 
@@ -281,13 +281,13 @@ export default function LSIAFuturisticMap() {
               y1="331"
               x2="340"
               y2="79"
-              stroke="#ea580c"
+              stroke="#e2e8f0"
               strokeWidth="1"
               strokeDasharray="6 6"
               className="opacity-40"
             />
-            <text x="45" y="347" fill="#ea580c" fontSize="7" fontFamily="monospace">03</text>
-            <text x="355" y="68" fill="#ea580c" fontSize="7" fontFamily="monospace">21</text>
+            <text x="45" y="347" fill="#94a3b8" fontSize="7" fontFamily="monospace">03</text>
+            <text x="355" y="68" fill="#94a3b8" fontSize="7" fontFamily="monospace">21</text>
 
             {/* Terminal Apron Loops & Airport Roads (Drawn in Luxury Neon Lines) */}
             <path
@@ -309,17 +309,17 @@ export default function LSIAFuturisticMap() {
             {showRadar && (
               <g transform="translate(220, 190)">
                 {/* Visual radar circular sweep rings */}
-                <circle r="40" fill="none" stroke="#ea580c" strokeWidth="0.5" className="opacity-15" />
-                <circle r="90" fill="none" stroke="#ea580c" strokeWidth="0.5" className="opacity-10" />
-                <circle r="140" fill="none" stroke="#ea580c" strokeWidth="0.5" className="opacity-5" />
-                <circle r="200" fill="none" stroke="#ea580c" strokeWidth="0.5" className="opacity-5" />
+                <circle r="40" fill="none" stroke="#94a3b8" strokeWidth="0.5" className="opacity-15" />
+                <circle r="90" fill="none" stroke="#94a3b8" strokeWidth="0.5" className="opacity-10" />
+                <circle r="140" fill="none" stroke="#94a3b8" strokeWidth="0.5" className="opacity-5" />
+                <circle r="200" fill="none" stroke="#94a3b8" strokeWidth="0.5" className="opacity-5" />
                 {/* Glowing beacon rotating pointer line */}
                 <line
                   x1="0"
                   y1="0"
                   x2={Math.cos((radarAngle * Math.PI) / 180) * 210}
                   y2={Math.sin((radarAngle * Math.PI) / 180) * 210}
-                  stroke="rgba(234, 88, 12, 0.45)"
+                  stroke="rgba(255, 255, 255, 0.45)"
                   strokeWidth="1.5"
                 />
                 {/* Radar beam soft gradient wedge */}
@@ -328,9 +328,9 @@ export default function LSIAFuturisticMap() {
                      L ${Math.cos((radarAngle * Math.PI) / 180) * 210} ${Math.sin((radarAngle * Math.PI) / 180) * 210} 
                      A 210,210 0 0,0 ${Math.cos(((radarAngle - 25) * Math.PI) / 180) * 210} ${Math.sin(((radarAngle - 25) * Math.PI) / 180) * 210} 
                      Z`}
-                  fill="rgba(234, 88, 12, 0.05)"
+                  fill="rgba(255, 255, 255, 0.03)"
                 />
-                <circle r="4" fill="#ea580c" />
+                <circle r="4" fill="#f1f5f9" />
               </g>
             )}
 
@@ -357,17 +357,17 @@ export default function LSIAFuturisticMap() {
               >
                 <span className="relative flex h-5 w-5">
                   <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    isSelected ? "bg-[#ea580c]" : "bg-slate-400 opacity-30"
+                    isSelected ? "bg-white" : "bg-slate-455 opacity-30"
                   }`}></span>
                   <span className={`relative inline-flex rounded-full h-5 w-5 border border-slate-900 justify-center items-center ${
-                    isSelected ? "bg-[#ea580c] text-slate-950 font-bold" : "bg-slate-800 text-slate-300 hover:bg-[#ea580c] hover:text-slate-950 transition-colors"
+                    isSelected ? "bg-white text-slate-950 font-bold" : "bg-slate-800 text-slate-300 hover:bg-slate-100 hover:text-slate-950 transition-colors"
                   }`}>
                     {spot.id === "hotspot-tower" ? "🗼" : "•"}
                   </span>
                 </span>
                 
                 {/* Pop label */}
-                <span className="absolute top-6 scale-90 group-hover:scale-100 opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap bg-slate-950 text-[9px] font-mono text-[#ea580c] border border-[#ea580c]/30 py-0.5 px-2 rounded-md shadow shadow-black">
+                <span className="absolute top-6 scale-90 group-hover:scale-100 opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap bg-slate-950 text-[9px] font-mono text-slate-300 border border-slate-800 py-0.5 px-2 rounded-md shadow shadow-black">
                   {spot.title}
                 </span>
               </button>
@@ -382,7 +382,6 @@ export default function LSIAFuturisticMap() {
                 key={blip.id}
                 onClick={() => {
                   setActiveBlip(blip.id);
-                  // Auto fill telemetry matching details
                 }}
                 style={{ left: blip.x, top: blip.y }}
                 className="absolute transform -translate-x-1/2 -translate-y-1/2 z-40 p-1.5 transition-all focus:outline-none"
@@ -416,21 +415,21 @@ export default function LSIAFuturisticMap() {
         <div className="absolute right-3 bottom-3 flex flex-col space-y-2 z-50">
           <button
             onClick={() => setScale((prev) => Math.min(prev + 0.25, 2.5))}
-            className="p-1.5 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded-lg hover:text-[#ea580c] active:scale-95 transition-all shadow-md"
+            className="p-1.5 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded-lg hover:text-white active:scale-95 transition-all shadow-md"
             title="Inzoomen"
           >
             <ZoomIn className="h-4.5 w-4.5" />
           </button>
           <button
             onClick={() => setScale((prev) => Math.max(prev - 0.25, 0.5))}
-            className="p-1.5 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded-lg hover:text-[#ea580c] active:scale-95 transition-all shadow-md"
+            className="p-1.5 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded-lg hover:text-white active:scale-95 transition-all shadow-md"
             title="Uitzoomen"
           >
             <ZoomOut className="h-4.5 w-4.5" />
           </button>
           <button
             onClick={resetMap}
-            className="p-1.5 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded-lg hover:text-[#ea580c] active:scale-95 transition-all shadow-md"
+            className="p-1.5 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded-lg hover:text-white active:scale-95 transition-all shadow-md"
             title="Herstel Kaart"
           >
             <RefreshCw className="h-4.5 w-4.5" />
@@ -443,7 +442,7 @@ export default function LSIAFuturisticMap() {
             onClick={() => setShowGrid(!showGrid)}
             className={`text-[8px] font-mono px-2 py-1 rounded-md border transition-all ${
               showGrid 
-                ? "bg-[#ea580c]/10 border-[#ea580c]/30 text-[#ea580c]" 
+                ? "bg-slate-900 border-slate-800 text-white" 
                 : "bg-slate-900/80 border-slate-800 text-slate-500"
             }`}
           >
@@ -453,7 +452,7 @@ export default function LSIAFuturisticMap() {
             onClick={() => setShowRadar(!showRadar)}
             className={`text-[8px] font-mono px-2 py-1 rounded-md border transition-all ${
               showRadar 
-                ? "bg-[#ea580c]/10 border-[#ea580c]/30 text-[#ea580c]" 
+                ? "bg-slate-900 border-slate-800 text-white" 
                 : "bg-slate-900/80 border-slate-800 text-slate-500"
             }`}
           >
@@ -470,14 +469,14 @@ export default function LSIAFuturisticMap() {
       {/* Selected Entity details panel */}
       <div className="bg-slate-900/40 border border-slate-800/80 p-3.5 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Selected Air traffic Blip telemetry */}
-        <div className="space-y-2 border-r border-slate-900 pr-0 md:pr-4">
+        <div className="space-y-2 border-r border-[#1e293b] pr-0 md:pr-4">
           <div className="flex justify-between items-center">
             <span className="text-[9px] font-mono text-slate-500 uppercase font-bold tracking-widest">Geselecteerde Vliegtuigstroom</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-350"></span>
           </div>
           
           <div className="flex gap-2.5 items-center">
-            <div className="h-8 w-8 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-center text-orange-500">
+            <div className="h-8 w-8 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-center text-slate-200">
               <Navigation className="h-4 w-4 transform rotate-45" />
             </div>
             <div>
@@ -507,11 +506,11 @@ export default function LSIAFuturisticMap() {
           {selectedHotspot ? (
             <>
               <div className="flex justify-between items-center">
-                <span className="text-[9px] font-mono text-[#ea580c] uppercase font-bold tracking-widest">Locatie Gegevens</span>
+                <span className="text-[9px] font-mono text-slate-300 uppercase font-bold tracking-widest">Locatie Gegevens</span>
                 <span className="text-[8px] font-mono text-slate-500">{selectedHotspot.subtitle}</span>
               </div>
               <h4 className="text-xs font-bold text-slate-100 flex items-center gap-1.5 font-sans">
-                <MapPin className="h-3 w-3 text-orange-500" />
+                <MapPin className="h-3 w-3 text-slate-300" />
                 {selectedHotspot.title}
               </h4>
               <p className="text-[10px] text-slate-400 leading-relaxed font-light font-sans">

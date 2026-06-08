@@ -4,7 +4,7 @@ import {
   MapPin, CheckCircle2, ShieldAlert, BookOpen, AlertCircle, Plus, Sparkles, Megaphone 
 } from "lucide-react";
 
-import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig, StaffUser, KluHandbookChapter } from "./types";
+import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig, StaffUser, KluHandbookChapter, LicenseLog } from "./types";
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer";
 import BrevettenHub from "./components/BrevettenHub";
@@ -48,6 +48,7 @@ export default function App() {
   const [aircraftList, setAircraftList] = React.useState<Aircraft[]>([]);
   const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>([]);
   const [kluHandbook, setKluHandbook] = React.useState<KluHandbookChapter[]>([]);
+  const [logs, setLogs] = React.useState<LicenseLog[]>([]);
 
   // Success notifications
   const [transactionSuccess, setTransactionSuccess] = React.useState<string | null>(null);
@@ -269,6 +270,9 @@ export default function App() {
             setFinancialConfig(data.financialConfig);
             localStorage.setItem("@luchtvaart_oranjestad_financial_config", JSON.stringify(data.financialConfig));
           }
+          if (data.logs !== undefined) {
+            setLogs(data.logs);
+          }
         }
       } catch (error) {
         console.error("Mislukt om gedeelde portaalgegevens op te halen:", error);
@@ -288,6 +292,7 @@ export default function App() {
   // Helper to save shared data server-side
   const saveSharedPortalData = async (payload: {
     issuedLicenses?: IssuedLicense[];
+    logs?: LicenseLog[];
     inventory?: AircraftInventory[];
     aircraftList?: Aircraft[];
     announcement?: string;
@@ -357,10 +362,32 @@ export default function App() {
     } catch (e) {
       console.error("Error saving licenses:", e);
     }
-    saveSharedPortalData({ issuedLicenses: updatedLics });
+
+    // Capture log details
+    const logDetails = newLic.isPreExisting
+      ? `Bestaand vliegbrevet handmatig toegevoegd door ${fullname || newLic.issuedBy || "Systeem"} (0 kosten, oorspronkelijke uitgiftedatum: ${newLic.issueDate || "onbekend"}).`
+      : `Nieuw vliegbrevet officieel geregistreerd door ${fullname || newLic.issuedBy || "Systeem"} na theorie- en praktijktraject.`;
+
+    const newLog: LicenseLog = {
+      id: "log-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+      timestamp: new Date().toLocaleDateString("nl-NL") + " " + new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+      action: "Aangemaakt",
+      performedBy: fullname || newLic.issuedBy || "Systeem",
+      performedByRole: role || "medewerker",
+      citizenName: newLic.citizenName,
+      citizenId: newLic.citizenId,
+      licenseType: newLic.licenseType,
+      details: logDetails
+    };
+
+    const updatedLogs = [newLog, ...logs];
+    setLogs(updatedLogs);
+
+    saveSharedPortalData({ issuedLicenses: updatedLics, logs: updatedLogs });
   };
 
   const handleRemoveLicense = (licId: string) => {
+    const previousLic = issuedLicenses.find(l => l.id === licId);
     const updatedLics = issuedLicenses.filter(l => l.id !== licId);
     setIssuedLicenses(updatedLics);
     try {
@@ -368,10 +395,29 @@ export default function App() {
     } catch (e) {
       console.error("Error saving licenses:", e);
     }
-    saveSharedPortalData({ issuedLicenses: updatedLics });
+
+    if (previousLic) {
+      const newLog: LicenseLog = {
+        id: "log-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+        timestamp: new Date().toLocaleDateString("nl-NL") + " " + new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+        action: "Ingetrokken",
+        performedBy: fullname || "Systeem",
+        performedByRole: role || "manager",
+        citizenName: previousLic.citizenName,
+        citizenId: previousLic.citizenId,
+        licenseType: previousLic.licenseType,
+        details: `Verwijderd uit registratiesysteem (database-cleanup).`
+      };
+      const updatedLogs = [newLog, ...logs];
+      setLogs(updatedLogs);
+      saveSharedPortalData({ issuedLicenses: updatedLics, logs: updatedLogs });
+    } else {
+      saveSharedPortalData({ issuedLicenses: updatedLics });
+    }
   };
 
   const handleUpdateLicense = (updatedLic: IssuedLicense) => {
+    const previousLic = issuedLicenses.find(l => l.id === updatedLic.id);
     const updatedLics = issuedLicenses.map(l => l.id === updatedLic.id ? updatedLic : l);
     setIssuedLicenses(updatedLics);
     try {
@@ -379,7 +425,41 @@ export default function App() {
     } catch (e) {
       console.error("Error saving licenses:", e);
     }
-    saveSharedPortalData({ issuedLicenses: updatedLics });
+
+    // Log the difference
+    let actionType: "Ingetrokken" | "Strike Toegevoegd" | "Hersteld" | "Gewijzigd" = "Gewijzigd";
+    let details = `Brevetgegevens bijgewerkt.`;
+
+    if (previousLic) {
+      if (!previousLic.revoked && updatedLic.revoked) {
+        actionType = "Ingetrokken";
+        details = `Brevet ingenomen wegens: ${updatedLic.revokeReason || "Geen reden opgegeven"}`;
+      } else if (previousLic.revoked && !updatedLic.revoked) {
+        actionType = "Hersteld";
+        details = `Brevet succesvol hersteld en geactiveerd door ${fullname}.`;
+      } else if ((updatedLic.strikes || 0) > (previousLic.strikes || 0)) {
+        actionType = "Strike Toegevoegd";
+        const latestStrikeReason = updatedLic.strikeReasons?.[updatedLic.strikeReasons.length - 1] || "Overige overtreding";
+        details = `Strike #${updatedLic.strikes} opgelegd wegens: ${latestStrikeReason}`;
+      }
+    }
+
+    const newLog: LicenseLog = {
+      id: "log-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+      timestamp: new Date().toLocaleDateString("nl-NL") + " " + new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+      action: actionType,
+      performedBy: fullname || updatedLic.revokedBy || "Beheerder",
+      performedByRole: role || "medewerker",
+      citizenName: updatedLic.citizenName,
+      citizenId: updatedLic.citizenId,
+      licenseType: updatedLic.licenseType,
+      details
+    };
+
+    const updatedLogs = [newLog, ...logs];
+    setLogs(updatedLogs);
+
+    saveSharedPortalData({ issuedLicenses: updatedLics, logs: updatedLogs });
   };
 
   const handleClearAllLicenses = () => {
@@ -449,7 +529,15 @@ export default function App() {
 
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col justify-between">
+    <div className="min-h-screen bg-[#02050f] text-slate-100 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-slate-500/30 selection:text-white">
+      {/* Absolute High-End Background Decoration Glows */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[450px] bg-[radial-gradient(ellipse_at_top,_rgba(148,163,184,0.06)_0%,_rgba(148,163,184,0)_70%)] pointer-events-none z-0"></div>
+      <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-[radial-gradient(ellipse_at_center,_rgba(148,163,184,0.02)_0%,_transparent_70%)] pointer-events-none rounded-full blur-[100px] z-0"></div>
+      <div className="absolute top-[40%] right-[-10%] w-[45%] h-[45%] bg-[radial-gradient(ellipse_at_center,_rgba(148,163,184,0.02)_0%,_transparent_70%)] pointer-events-none rounded-full blur-[100px] z-0"></div>
+
+      {/* Tactical Grid Background Line */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0b1329_1px,transparent_1px),linear-gradient(to_bottom,#0b1329_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-[0.25] pointer-events-none z-0" />
+
       {/* Dynamic Navigation */}
       <Navigation 
         currentTab={currentTab} 
@@ -457,53 +545,61 @@ export default function App() {
       />
 
       {/* Main Dynamic Workspace Area */}
-      <main className="flex-grow">
+      <main className="flex-grow z-10 relative">
         {transactionSuccess && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-            <div className="bg-emerald-500/10 border-2 border-emerald-500/30 p-5 rounded-2xl flex items-center space-x-4 animate-fade-in text-emerald-400">
-              <CheckCircle2 className="h-6 w-6 shrink-0" />
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center space-x-4 animate-fade-in text-slate-200 backdrop-blur-md">
+              <CheckCircle2 className="h-6 w-6 shrink-0 text-white" />
               <div>
                 <h4 className="font-bold text-sm">Betaling Geaccepteerd</h4>
-                <p className="text-xs text-slate-300 mt-1">{transactionSuccess}</p>
+                <p className="text-xs text-slate-350 mt-1">{transactionSuccess}</p>
               </div>
             </div>
           </div>
         )}
 
         {currentTab === "home" && (
-          <div>
-            {/* Elegant Hero Section */}
-            <header className="relative bg-slate-950/70 border-b border-slate-900 overflow-hidden py-24 sm:py-32">
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent opacity-90"></div>
+          <div className="space-y-12">
+            {/* Elegant Floating Hero Cockpit Section */}
+            <header className="relative bg-slate-950/60 border border-slate-900/80 rounded-[32px] overflow-hidden py-16 sm:py-20 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 shadow-3xl hover:border-slate-500/10 transition-colors duration-500">
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 opacity-90 z-0"></div>
+              <div className="absolute -bottom-48 -right-48 w-96 h-96 bg-slate-500/5 rounded-full blur-[100px] pointer-events-none z-0"></div>
               
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
                 
                 {/* Hero brand texts (7 cols) */}
-                <div className="lg:col-span-7 space-y-6">
-                  <div className="inline-flex items-center space-x-2 bg-[#ea580c]/10 border border-[#ea580c]/15 px-3.5 py-1.5 rounded-full text-[#ea580c] text-xs font-mono font-bold uppercase tracking-wider">
-                    <Sparkles className="h-4 w-4 animate-pulse" />
-                    <span>Luchtvaartschool & Vliegtuigverkoop</span>
+                <div className="lg:col-span-7 space-y-7">
+                  <div className="inline-flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-full text-slate-350 text-[10px] font-mono font-black uppercase tracking-widest shadow-md">
+                    <Sparkles className="h-3.5 w-3.5 animate-pulse text-slate-400" />
+                    <span>Luchtvaartschool & Vliegtuigverkoop Oranjestad</span>
                   </div>
-                                    <h1 className="font-display font-black text-4xl sm:text-6xl tracking-tight leading-none text-white uppercase">
-                    Jouw reis <span className="text-[#ea580c] block mt-2">Begint in de lucht.</span>
+                  
+                  <h1 className="font-display font-black text-4xl sm:text-6xl tracking-tight leading-none text-white uppercase select-none">
+                    Jouw reis <span className="bg-gradient-to-r from-slate-100 via-slate-200 to-white bg-clip-text text-transparent block mt-2 font-extrabold">Begint in de lucht.</span>
                   </h1>
                   
-                  <p className="text-slate-400 text-sm sm:text-lg leading-relaxed max-w-2xl font-light">
-                    Behaal uw vliegbrevet voor Helikopter of Vliegtuig door simpelweg een ticket te maken in onze Discord.
+                  <p className="text-slate-405 text-sm sm:text-base leading-relaxed max-w-xl font-light">
+                    Behaal uw vliegbrevet voor Helikopter of Vliegtuig door simpelweg een ticket te maken in onze Discord. Wij verzorgen professionele theorie- en praktijkbegeleiding.
                   </p>
                   
-                  <div className="pt-4 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                  <div className="pt-2 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
                     <button
                       onClick={() => setCurrentTab("brevetten")}
-                      className="bg-[#ea580c] hover:bg-[#ea580c]/90 text-slate-950 font-bold font-mono text-center tracking-wider uppercase text-xs sm:text-sm px-8 py-4 rounded-xl transition-all cursor-pointer shadow-lg shadow-[#ea580c]/15 animate-pulse"
+                      className="bg-slate-100 hover:bg-white text-slate-950 font-black font-mono text-center tracking-widest uppercase text-xs sm:text-sm px-8 py-4.5 rounded-2xl transition-all cursor-pointer shadow-xl shadow-white/5 hover:scale-105"
                     >
                       Behaal Vliegbrevet
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab("marketplace")}
+                      className="bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-white font-black font-mono text-center tracking-widest uppercase text-xs sm:text-sm px-8 py-4.5 rounded-2xl transition-all cursor-pointer"
+                    >
+                      Showroom Catalogus
                     </button>
                   </div>
                 </div>
 
                 {/* Futuristic movable map of GTA airport LSIA with standard dark luxurious styling */}
-                <div className="lg:col-span-5">
+                <div className="lg:col-span-5 w-full">
                   <LSIAFuturisticMap />
                 </div>
               </div>
@@ -511,17 +607,17 @@ export default function App() {
 
             {/* Management Announcement Banner */}
             {announcement && announcement.trim() !== "" && (
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-                <div className="bg-[#ea580c]/5 border border-[#ea580c]/15 p-6 sm:p-8 rounded-3xl flex items-start gap-4 shadow-xl shadow-[#ea580c]/5 relative overflow-hidden group hover:border-[#ea580c]/35 transition-all duration-300">
-                  <div className="absolute top-0 right-0 p-12 bg-gradient-to-bl from-[#ea580c]/5 to-transparent rounded-bl-full pointer-events-none"></div>
-                  <div className="p-3.5 bg-[#ea580c]/15 border border-[#ea580c]/10 rounded-2xl text-[#ea580c] shrink-0 mt-0.5 animate-bounce">
-                    <Megaphone className="h-6 w-6" />
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="bg-slate-900/60 border border-slate-800 p-6 sm:p-8 rounded-[24px] flex items-start gap-4 shadow-xl shadow-white/5 relative overflow-hidden group hover:border-slate-700 transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-12 bg-gradient-to-bl from-slate-500/5 to-transparent rounded-bl-full pointer-events-none"></div>
+                  <div className="p-3 bg-slate-800 border border-slate-700 rounded-2xl text-slate-200 shrink-0 mt-0.5 animate-bounce">
+                    <Megaphone className="h-5 w-5" />
                   </div>
                   <div className="space-y-1 text-left z-10">
-                    <span className="text-[9px] text-[#ea580c] font-mono tracking-widest uppercase font-bold bg-[#ea580c]/10 px-2.5 py-1 rounded-full border border-[#ea580c]/10">
+                    <span className="text-[9px] text-slate-300 font-mono tracking-widest uppercase font-black bg-slate-800 px-3 py-1 rounded-full border border-slate-705">
                       📢 Belangrijke Mededeling van Directie
                     </span>
-                    <p className="text-white text-sm sm:text-base leading-relaxed font-sans font-medium pt-2 whitespace-pre-line">
+                    <p className="text-white text-sm sm:text-base leading-relaxed font-sans font-medium pt-3 whitespace-pre-line select-none">
                       {announcement}
                     </p>
                   </div>
@@ -530,35 +626,37 @@ export default function App() {
             )}
 
             {/* Aviation Academy Pillars section */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
                 {/* Pillar 1 */}
-                <div className="bg-slate-950/50 p-8 rounded-2xl border border-slate-850/85 hover:border-slate-800 transition-all hover:-translate-y-1">
-                  <div className="p-3.5 bg-brand-500/10 border border-brand-500/10 rounded-xl h-12 w-12 flex items-center justify-center text-brand-500 mb-6 font-bold">
-                    <Award className="h-6 w-6" />
+                <div className="bg-slate-950/70 p-8 rounded-[24px] border border-slate-900/80 hover:border-slate-500/30 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-white/5 group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-16 bg-gradient-to-bl from-slate-500/5 to-transparent rounded-bl-full pointer-events-none"></div>
+                  <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl h-12 w-12 flex items-center justify-center text-slate-300 mb-6 font-bold group-hover:scale-110 transition-transform">
+                    <Award className="h-5 w-5" />
                   </div>
-                  <h3 className="font-display font-semibold text-xl text-white">Vliegbrevetten</h3>
-                  <p className="text-sm text-slate-400 mt-3 leading-relaxed font-light">
+                  <h3 className="font-display font-bold text-lg text-white uppercase tracking-tight">Vliegbrevetten</h3>
+                  <p className="text-xs text-slate-400 mt-3 leading-relaxed font-light">
                     Kies uw gewenste categorie en open een ticket in onze Discord. Onze instructeurs plannen een theorie- en praktijkbeoordeling met u in.
                   </p>
-                  <button onClick={() => setCurrentTab("brevetten")} className="mt-5 text-xs font-mono font-bold text-[#ea580c] flex items-center gap-1 hover:underline cursor-pointer uppercase">
+                  <button onClick={() => setCurrentTab("brevetten")} className="mt-6 text-[10px] font-mono font-black text-slate-300 flex items-center gap-1 hover:text-white cursor-pointer uppercase tracking-wider">
                     <span>Bekijk Brevetten</span>
-                    <ArrowRight className="h-3 w-3" />
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
 
                 {/* Pillar 2 (Vliegtuig & Heli Catalogus) */}
-                <div className="bg-slate-950/50 p-8 rounded-2xl border border-slate-850/85 hover:border-slate-800 transition-all hover:-translate-y-1">
-                  <div className="p-3.5 bg-[#ea580c]/10 border border-[#ea580c]/10 rounded-xl h-12 w-12 flex items-center justify-center text-[#ea580c] mb-6 font-bold">
-                    <Plane className="h-6 w-6" />
+                <div className="bg-slate-950/70 p-8 rounded-[24px] border border-slate-900/80 hover:border-slate-500/30 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-white/5 group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-16 bg-gradient-to-bl from-slate-500/5 to-transparent rounded-bl-full pointer-events-none"></div>
+                  <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl h-12 w-12 flex items-center justify-center text-slate-300 mb-6 font-bold group-hover:scale-110 transition-transform">
+                    <Plane className="h-5 w-5" />
                   </div>
-                  <h3 className="font-display font-semibold text-xl text-white">Vliegtuig & Helikopter Catalogus</h3>
-                  <p className="text-sm text-slate-400 mt-3 leading-relaxed font-light">
+                  <h3 className="font-display font-bold text-lg text-white uppercase tracking-tight">Vliegtuig & Helikopter Catalogus</h3>
+                  <p className="text-xs text-slate-400 mt-3 leading-relaxed font-light">
                     Ontdek uw ultieme vrijheid! Bekijk onze exclusieve catalogus met perfect onderhouden helikopters, premium propellervliegtuigen en snelle privéjets. Direct klaar om de lucht mee te veroveren.
                   </p>
-                  <button onClick={() => setCurrentTab("marketplace")} className="mt-5 text-xs font-mono font-bold text-[#ea580c] flex items-center gap-1 hover:underline cursor-pointer uppercase">
+                  <button onClick={() => setCurrentTab("marketplace")} className="mt-6 text-[10px] font-mono font-black text-slate-300 flex items-center gap-1 hover:text-white cursor-pointer uppercase tracking-wider">
                     <span>Bekijk de Catalogus</span>
-                    <ArrowRight className="h-3 w-3" />
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
               </div>
@@ -621,6 +719,8 @@ export default function App() {
         {currentTab === "klu" && (
           <KluPortal 
             issuedLicenses={issuedLicenses}
+            onAddLicense={handleAddLicense}
+            logs={logs}
             staffAccounts={staffAccounts}
             onUpdateStaffAccounts={handleUpdateStaffAccounts}
             onUpdateLicense={handleUpdateLicense}

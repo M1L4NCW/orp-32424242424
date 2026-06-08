@@ -152,4 +152,16 @@ export interface KluHandbookChapter {
   createdAt: string;
 }
 
+export interface LicenseLog {
+  id: string;
+  timestamp: string;
+  action: "Aangemaakt" | "Ingetrokken" | "Strike Toegevoegd" | "Hersteld" | "Gewijzigd";
+  performedBy: string;
+  performedByRole: string;
+  citizenName: string;
+  citizenId: string;
+  licenseType: "helicopter" | "small-plane" | "large-plane";
+  details: string;
+}
+
 

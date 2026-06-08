@@ -32,23 +32,23 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
   // Handle empty state gracefully to prevent crashes
   if (!currentList || currentList.length === 0) {
     return (
-      <div className="bg-slate-900 text-white py-12">
+      <div className="bg-transparent text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Intro */}
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-[#ea580c] font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-[#ea580c]/10 rounded-full border border-[#ea580c]/10">
+            <span className="text-slate-300 font-mono text-xs tracking-widest uppercase font-black px-4 py-1.5 bg-slate-900 rounded-full border border-slate-800">
               Showroom & Catalogus Oranjestad
             </span>
-            <h1 className="font-display font-bold text-4xl mt-3 tracking-tight text-white font-sans">
+            <h1 className="font-display font-medium text-4xl mt-4 tracking-tight text-white uppercase">
               Exclusieve Catalogus
             </h1>
-            <p className="text-slate-400 mt-4 leading-relaxed text-sm font-light">
+            <p className="text-slate-400 mt-2 font-light text-sm">
               Welkom bij onze premium vloot showroom. Vind hier uw droomvliegtuig of de ideale helikopter voor uw vloot.
             </p>
           </div>
 
-          <div className="text-center py-20 bg-slate-950 border border-slate-800 rounded-3xl p-8 max-w-xl mx-auto space-y-6">
-            <div className="h-16 w-16 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto text-[#ea580c] border border-slate-800 animate-pulse">
+          <div className="text-center py-20 bg-slate-950/80 border border-slate-900 rounded-[24px] p-8 max-w-xl mx-auto space-y-6 shadow-2xl">
+            <div className="h-16 w-16 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto text-slate-300 border border-slate-800 animate-pulse">
               <ShoppingBag className="h-8 w-8" />
             </div>
             <div className="space-y-2">
@@ -76,18 +76,18 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
   const currentBasePrice = specInventory.priceOverride || currentSelected.basePrice;
 
   return (
-    <div className="bg-slate-900 text-white py-12">
+    <div className="bg-transparent text-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Intro */}
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-[#ea580c] font-mono text-xs tracking-widest uppercase font-bold px-3 py-1 bg-[#ea580c]/10 rounded-full border border-[#ea580c]/10">
+          <span className="text-slate-300 font-mono text-xs tracking-widest uppercase font-black px-4 py-1.5 bg-slate-900 rounded-full border border-slate-800/25 shadow-md">
             Showroom & Catalogus Oranjestad
           </span>
-          <h1 className="font-display font-bold text-4xl mt-3 tracking-tight">
+          <h1 className="font-display font-black text-4xl mt-4 tracking-tight text-white uppercase">
             Exclusieve Catalogus
           </h1>
-          <p className="text-slate-400 mt-4 leading-relaxed text-sm font-light">
+          <p className="text-slate-405 mt-2 font-light text-sm leading-relaxed">
             Welkom bij onze premium luchtvaart catalogus! Vind hier uw droomvliegtuig of de ideale helikopter voor uw vloot. Of u nu op zoek bent naar ongeëvenaarde snelheid, ultieme luxe of de perfecte trainingstool — ontdek onze zorgvuldig geselecteerde vloot van wereldklasse.
           </p>
         </div>
@@ -117,7 +117,7 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
                       setSelectedColor(colors[0]); // Reset paint to standard
                       setActiveView("detail");
                     }}
-                    className="group bg-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden shadow-xl hover:border-[#ea580c]/50 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+                    className="group bg-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden shadow-xl hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
                     {/* Visual box showing aircraft brand gradient or photo */}
                     <div className="h-52 w-full relative flex flex-col justify-center items-center p-6 text-center select-none overflow-hidden" 
@@ -140,7 +140,7 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
                       {/* Stock badge */}
                       <span className={`absolute top-4 right-4 px-2.5 py-1 rounded-md text-[9px] font-mono font-bold tracking-wider uppercase border relative z-15 ${
                         hasStock 
-                          ? "bg-emerald-500/80 border-emerald-500/25 text-emerald-100" 
+                          ? "bg-slate-900 border-slate-800 text-slate-100" 
                           : "bg-rose-500/80 border-rose-500/25 text-rose-100"
                       }`}>
                         {hasStock ? `${airInv.stockCount} Op Voorraad` : "Uitverkocht"}
@@ -148,7 +148,7 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
 
                       {/* Hover eye icon */}
                       <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                        <span className="bg-[#ea580c] text-slate-950 px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-[#ea580c]/15">
+                        <span className="bg-slate-100 text-slate-950 px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-white/5">
                           <Eye className="h-4 w-4" />
                           <span>Klik voor Informatie</span>
                         </span>
@@ -178,7 +178,7 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
                           <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">PRIJS IN SHOWROOM</p>
                           <p className="text-lg font-bold font-mono text-white">€{priceToShow.toLocaleString("nl-NL")}</p>
                         </div>
-                        <span className="text-xs text-[#ea580c] font-mono font-bold group-hover:underline flex items-center gap-1">
+                        <span className="text-xs text-slate-400 font-mono font-bold group-hover:text-white flex items-center gap-1">
                           <span>Bekijk details</span>
                           <span>→</span>
                         </span>
@@ -200,7 +200,7 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
                 onClick={() => setActiveView("grid")}
                 className="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white px-5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md"
               >
-                <ArrowLeft className="h-4 w-4 text-[#ea580c]" />
+                <ArrowLeft className="h-4 w-4 text-slate-400" />
                 <span>Terug naar Toestellen Overzicht</span>
               </button>
             </div>
@@ -218,14 +218,14 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
                   
                   {currentSelected.imageUrl ? (
                     <img 
-                      src={currentSelected.imageUrl} 
-                      alt={currentSelected.name} 
-                      className="absolute inset-0 w-full h-full object-cover" 
-                      referrerPolicy="no-referrer" 
+                       src={currentSelected.imageUrl} 
+                       alt={currentSelected.name} 
+                       className="absolute inset-0 w-full h-full object-cover" 
+                       referrerPolicy="no-referrer" 
                     />
                   ) : (
                     <div className="absolute top-4 left-4 font-mono text-[9px] bg-slate-950/80 px-2.5 py-1 rounded text-slate-350 flex items-center gap-1.5 border border-slate-850 z-10">
-                      <Compass className="h-3 w-3 text-[#ea580c] animate-spin" />
+                      <Compass className="h-3 w-3 text-slate-400 animate-spin" />
                       <span>Luchtvaart Centrum Oranjestad</span>
                     </div>
                   )}
@@ -275,8 +275,8 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
               {/* RIGHT: Customizer specs, color select, price calc (5 cols) */}
               <div className="lg:col-span-5 bg-slate-950 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="font-display font-semibold text-base text-white flex items-center gap-1.5 uppercase font-[#ea580c] font-mono tracking-wider mb-5">
-                    <SlidersHorizontal className="h-4.5 w-4.5 text-[#ea580c]" />
+                  <h3 className="font-display font-semibold text-base text-white flex items-center gap-1.5 uppercase text-slate-300 font-mono tracking-wider mb-5">
+                    <SlidersHorizontal className="h-4.5 w-4.5 text-slate-400" />
                     <span>Toestel Opties</span>
                   </h3>
 
@@ -296,7 +296,7 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
                               key={c.name}
                               onClick={() => setSelectedColor(c)}
                               className={`h-9 w-9 rounded-full border-2 transition-all cursor-pointer relative ${
-                                isSelected ? "border-[#ea580c] scale-110 shadow-lg shadow-[#ea580c]/15" : "border-slate-800 hover:border-slate-600"
+                                isSelected ? "border-white scale-110 shadow-lg shadow-white/5" : "border-slate-800 hover:border-slate-600"
                               }`}
                               style={{ backgroundColor: c.hex }}
                               title={c.name}
@@ -322,14 +322,14 @@ export default function AircraftMarketplace({ logbook, inventory, aircraftList }
                   <div className="bg-slate-900 p-4 rounded-xl border border-slate-850 font-mono text-xs text-slate-400 space-y-2">
                     <div className="flex justify-between">
                       <span>Status:</span>
-                      <span className={`font-bold ${specInventory.stockCount > 0 ? "text-emerald-400" : "text-rose-450"}`}>
+                      <span className={`font-bold ${specInventory.stockCount > 0 ? "text-slate-300" : "text-rose-450"}`}>
                         {specInventory.stockCount > 0 ? `Beschikbaar in hangar (${specInventory.stockCount} stuks)` : "Tijdelijk niet op voorraad"}
                       </span>
                     </div>
 
                     <div className="flex justify-between border-t border-slate-800 pt-3 text-sm font-bold text-white">
                       <span>Showroom Prijs:</span>
-                      <span className="text-[#ea580c] text-base font-black">€{currentBasePrice.toLocaleString("nl-NL")}</span>
+                      <span className="text-white text-base font-black">€{currentBasePrice.toLocaleString("nl-NL")}</span>
                     </div>
                   </div>
                 </div>
