@@ -414,7 +414,8 @@ const readLocalFallback = () => {
         savedSpreadsheetId: parsed.savedSpreadsheetId || "",
         financialConfig: parsed.financialConfig || null,
         staffAccounts: parsed.staffAccounts || [],
-        kluHandbook: parsed.kluHandbook || []
+        kluHandbook: parsed.kluHandbook || [],
+        logs: parsed.logs || []
       };
     }
   } catch (error) {
@@ -430,7 +431,8 @@ const readLocalFallback = () => {
     savedSpreadsheetId: "",
     financialConfig: null,
     staffAccounts: [],
-    kluHandbook: []
+    kluHandbook: [],
+    logs: []
   };
 };
 
@@ -461,7 +463,8 @@ const readPortalDataAsync = async () => {
           savedSpreadsheetId: parsed.savedSpreadsheetId || "",
           financialConfig: parsed.financialConfig || null,
           staffAccounts: parsed.staffAccounts || [],
-          kluHandbook: parsed.kluHandbook || []
+          kluHandbook: parsed.kluHandbook || [],
+          logs: parsed.logs || []
         };
         // Always mirror on disk for robustness
         writeLocalFallback(structured);
@@ -507,7 +510,8 @@ app.post("/api/portal-data", async (req, res) => {
     savedSpreadsheetId,
     financialConfig,
     staffAccounts,
-    kluHandbook
+    kluHandbook,
+    logs
   } = req.body;
 
   const updated = {
@@ -520,7 +524,8 @@ app.post("/api/portal-data", async (req, res) => {
     savedSpreadsheetId: savedSpreadsheetId !== undefined ? savedSpreadsheetId : existing.savedSpreadsheetId,
     financialConfig: financialConfig !== undefined ? financialConfig : existing.financialConfig,
     staffAccounts: staffAccounts !== undefined ? staffAccounts : existing.staffAccounts,
-    kluHandbook: kluHandbook !== undefined ? kluHandbook : existing.kluHandbook
+    kluHandbook: kluHandbook !== undefined ? kluHandbook : existing.kluHandbook,
+    logs: logs !== undefined ? logs : existing.logs
   };
 
   await writePortalDataAsync(updated);
