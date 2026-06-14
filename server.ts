@@ -415,7 +415,10 @@ const readLocalFallback = () => {
         financialConfig: parsed.financialConfig || null,
         staffAccounts: parsed.staffAccounts || [],
         kluHandbook: parsed.kluHandbook || [],
-        logs: parsed.logs || []
+        logs: parsed.logs || [],
+        bonuses: parsed.bonuses || [],
+        activeSessionId: parsed.activeSessionId || null,
+        activeSessionUser: parsed.activeSessionUser || null
       };
     }
   } catch (error) {
@@ -432,7 +435,10 @@ const readLocalFallback = () => {
     financialConfig: null,
     staffAccounts: [],
     kluHandbook: [],
-    logs: []
+    logs: [],
+    bonuses: [],
+    activeSessionId: null,
+    activeSessionUser: null
   };
 };
 
@@ -464,7 +470,10 @@ const readPortalDataAsync = async () => {
           financialConfig: parsed.financialConfig || null,
           staffAccounts: parsed.staffAccounts || [],
           kluHandbook: parsed.kluHandbook || [],
-          logs: parsed.logs || []
+          logs: parsed.logs || [],
+          bonuses: parsed.bonuses || [],
+          activeSessionId: parsed.activeSessionId || null,
+          activeSessionUser: parsed.activeSessionUser || null
         };
         // Always mirror on disk for robustness
         writeLocalFallback(structured);
@@ -511,7 +520,10 @@ app.post("/api/portal-data", async (req, res) => {
     financialConfig,
     staffAccounts,
     kluHandbook,
-    logs
+    logs,
+    bonuses,
+    activeSessionId,
+    activeSessionUser
   } = req.body;
 
   const updated = {
@@ -525,7 +537,10 @@ app.post("/api/portal-data", async (req, res) => {
     financialConfig: financialConfig !== undefined ? financialConfig : existing.financialConfig,
     staffAccounts: staffAccounts !== undefined ? staffAccounts : existing.staffAccounts,
     kluHandbook: kluHandbook !== undefined ? kluHandbook : existing.kluHandbook,
-    logs: logs !== undefined ? logs : existing.logs
+    logs: logs !== undefined ? logs : existing.logs,
+    bonuses: bonuses !== undefined ? bonuses : (existing as any).bonuses || [],
+    activeSessionId: activeSessionId !== undefined ? activeSessionId : (existing as any).activeSessionId || null,
+    activeSessionUser: activeSessionUser !== undefined ? activeSessionUser : (existing as any).activeSessionUser || null
   };
 
   await writePortalDataAsync(updated);

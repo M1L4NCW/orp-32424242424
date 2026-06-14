@@ -164,4 +164,14 @@ export interface LicenseLog {
   details: string;
 }
 
+export interface Bonus {
+  id: string;
+  recipientName: string;
+  amount: number;
+  reason: string;
+  issuedBy: string;
+  issuedAt: string;
+  paid: boolean;
+}
+
 

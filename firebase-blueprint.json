@@ -37,6 +37,18 @@
         "financialConfig": {
           "type": "object",
           "description": "Adjustable financial rates, including brevet pricing, wages, taxes, and cost matrices"
+        },
+        "bonuses": {
+          "type": "array",
+          "description": "The bonuses issued per person"
+        },
+        "activeSessionId": {
+          "type": "string",
+          "description": "The active unique token for the logged in staff portal user session"
+        },
+        "activeSessionUser": {
+          "type": "string",
+          "description": "The name of the user who holds the active session"
         }
       }
     }

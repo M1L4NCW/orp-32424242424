@@ -4,7 +4,7 @@ import {
   MapPin, CheckCircle2, ShieldAlert, BookOpen, AlertCircle, Plus, Sparkles, Megaphone 
 } from "lucide-react";
 
-import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig, StaffUser, KluHandbookChapter, LicenseLog } from "./types";
+import { PilotLogbook, IssuedLicense, AircraftInventory, Aircraft, FinancialConfig, StaffUser, KluHandbookChapter, LicenseLog, Bonus } from "./types";
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer";
 import BrevettenHub from "./components/BrevettenHub";
@@ -42,6 +42,16 @@ export default function App() {
   const [role, setRole] = React.useState<"owner" | "manager" | "medewerker" | "klu" | null>(null);
   const [fullname, setFullname] = React.useState("");
   
+  // Session collision & dynamic kick-out states
+  const [kickedOutMessage, setKickedOutMessage] = React.useState<string | null>(null);
+  const currentSessionToken = React.useMemo(() => {
+    return Math.random().toString(36).substring(2, 11) + "_" + Date.now().toString().slice(-4);
+  }, []);
+  const isLoggedInRef = React.useRef(isLoggedIn);
+  React.useEffect(() => {
+    isLoggedInRef.current = isLoggedIn;
+  }, [isLoggedIn]);
+  
   // Direct and manager control states
   const [issuedLicenses, setIssuedLicenses] = React.useState<IssuedLicense[]>([]);
   const [inventory, setInventory] = React.useState<AircraftInventory[]>([]);
@@ -49,6 +59,7 @@ export default function App() {
   const [staffAccounts, setStaffAccounts] = React.useState<StaffUser[]>([]);
   const [kluHandbook, setKluHandbook] = React.useState<KluHandbookChapter[]>([]);
   const [logs, setLogs] = React.useState<LicenseLog[]>([]);
+  const [bonuses, setBonuses] = React.useState<Bonus[]>([]);
 
   // Success notifications
   const [transactionSuccess, setTransactionSuccess] = React.useState<string | null>(null);
@@ -177,6 +188,19 @@ export default function App() {
         if (response.ok && isMounted) {
           const data = await response.json();
 
+          // KICK STATE MONITORING: If someone else logged in on another device or tab
+          if (isLoggedInRef.current && data.activeSessionId && data.activeSessionId !== currentSessionToken) {
+            console.warn("Kicked out! Someone else logged in:", data.activeSessionUser);
+            setIsLoggedIn(false);
+            setRole(null);
+            setLoggedInUser(null);
+            setFullname("");
+            setKickedOutMessage(
+              `U bent automatisch uitgelogd omdat een andere gebruiker (${data.activeSessionUser || "onbekend"}) zojuist elders heeft ingelogd.`
+            );
+            return;
+          }
+
           // Fallback and self-healing: if the server is freshly started (length === 0)
           // but the client has actual records in localstorage, upload them to heal/restore the database.
           if (initialLoad) {
@@ -273,6 +297,10 @@ export default function App() {
           if (data.logs !== undefined) {
             setLogs(data.logs);
           }
+          if (data.bonuses !== undefined) {
+            setBonuses(data.bonuses);
+            localStorage.setItem("@luchtvaart_oranjestad_bonuses", JSON.stringify(data.bonuses));
+          }
         }
       } catch (error) {
         console.error("Mislukt om gedeelde portaalgegevens op te halen:", error);
@@ -302,6 +330,9 @@ export default function App() {
     financialConfig?: FinancialConfig;
     staffAccounts?: StaffUser[];
     kluHandbook?: KluHandbookChapter[];
+    bonuses?: Bonus[];
+    activeSessionId?: string | null;
+    activeSessionUser?: string | null;
   }) => {
     try {
       await fetch("/api/portal-data", {
@@ -313,6 +344,17 @@ export default function App() {
       console.error("Fout met opslaan van gedeelde portaalgegevens op server:", e);
     }
   };
+
+  // Register session when locally logging in
+  React.useEffect(() => {
+    if (isLoggedIn && loggedInUser) {
+      console.log("Registering active session validation id:", currentSessionToken);
+      saveSharedPortalData({
+        activeSessionId: currentSessionToken,
+        activeSessionUser: fullname || loggedInUser.fullname || loggedInUser.username || "Gast"
+      });
+    }
+  }, [isLoggedIn, loggedInUser, currentSessionToken]);
 
   const handleUpdateStaffAccounts = (updatedAccounts: StaffUser[]) => {
     setStaffAccounts(updatedAccounts);
@@ -712,6 +754,13 @@ export default function App() {
             setRole={setRole}
             fullname={fullname}
             setFullname={setFullname}
+            bonuses={bonuses}
+            onUpdateBonuses={(updatedBonuses) => {
+              setBonuses(updatedBonuses);
+              saveSharedPortalData({ bonuses: updatedBonuses });
+            }}
+            kickedOutMessage={kickedOutMessage}
+            onClearKickedOut={() => setKickedOutMessage(null)}
           />
         )}
 

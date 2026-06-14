@@ -4,7 +4,7 @@ import {
   Settings, UserCheck, HelpCircle, AlertCircle, FileText, CheckCircle, Plus, Image, Users, HelpCircle as HelpIcon,
   Coins, TrendingUp, Percent, Award, Calendar, Megaphone, Shield, Plane, Navigation, AlertTriangle, CheckCircle2
 } from "lucide-react";
-import { IssuedLicense, AircraftInventory, Aircraft, StaffUser, FinancialConfig } from "../types";
+import { IssuedLicense, AircraftInventory, Aircraft, StaffUser, FinancialConfig, Bonus } from "../types";
 import { LICENSES } from "../data";
 import { User } from "firebase/auth";
 import { 
@@ -53,6 +53,10 @@ interface StaffPortalProps {
   setRole: (role: "owner" | "manager" | "medewerker" | "klu" | null) => void;
   fullname: string;
   setFullname: (val: string) => void;
+  bonuses: Bonus[];
+  onUpdateBonuses: (bonuses: Bonus[]) => void;
+  kickedOutMessage?: string | null;
+  onClearKickedOut?: () => void;
 }
 
 // Default staff accounts
@@ -207,7 +211,11 @@ export default function StaffPortal({
   role,
   setRole,
   fullname,
-  setFullname
+  setFullname,
+  bonuses = [],
+  onUpdateBonuses,
+  kickedOutMessage = null,
+  onClearKickedOut
 }: StaffPortalProps) {
   
   // Selection/Input states for Instructor selection via Discord ID
@@ -215,6 +223,14 @@ export default function StaffPortal({
   const [useCustomInstructor, setUseCustomInstructor] = React.useState<boolean>(false);
   const [customInstructorName, setCustomInstructorName] = React.useState<string>("");
   const [customInstructorDiscordId, setCustomInstructorDiscordId] = React.useState<string>("");
+
+  // Administration sub-tab & bonus states
+  const [adminSubTab, setAdminSubTab] = React.useState<"overzicht" | "bonussen">("overzicht");
+  const [bonusRecipient, setBonusRecipient] = React.useState<string>("");
+  const [bonusAmount, setBonusAmount] = React.useState<string>("");
+  const [bonusReason, setBonusReason] = React.useState<string>("");
+  const [bonusSuccessMessage, setBonusSuccessMessage] = React.useState<string | null>(null);
+  const [bonusErrorMessage, setBonusErrorMessage] = React.useState<string | null>(null);
 
   // Discord ID for manual employees creation
   const [newDiscordId, setNewDiscordId] = React.useState<string>("");
@@ -1024,6 +1040,9 @@ export default function StaffPortal({
   };
 
   const handleStartDiscordLogin = async () => {
+    if (onClearKickedOut) {
+      onClearKickedOut();
+    }
     setDiscordLoginError(null);
     setIsDiscordLoggingIn(true);
     // Mark source as "staff" in localStorage so App.tsx knows to redirect back to Staff tab
@@ -1088,6 +1107,9 @@ export default function StaffPortal({
 
   const handleCredentialsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (onClearKickedOut) {
+      onClearKickedOut();
+    }
     const cleanUser = username.trim().toLowerCase();
     const cleanPass = password.trim();
 
@@ -1359,7 +1381,19 @@ export default function StaffPortal({
           {/* Login box */}
           <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden text-left">
             <div className="absolute top-0 left-0 right-0 h-1 bg-white"></div>
-                    {discordLoginError && (
+            {kickedOutMessage && (
+              <div className="mb-4 p-3.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-xs space-y-1 font-light">
+                <div className="flex gap-2 items-start">
+                  <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-amber-550" />
+                  <span className="font-semibold text-amber-300 font-sans">Sessie Verbroken / Uitgelogd</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-300 font-sans">{kickedOutMessage}</p>
+                <p className="text-[9px] text-slate-400 leading-normal pt-1 border-t border-amber-500/10 mt-1 font-sans">
+                  Er is elders ingelogd op dit account. U bent omwille van de beveiliging automatisch uitgelogd om gelijktijdige sessies te voorkomen.
+                </p>
+              </div>
+            )}
+            {discordLoginError && (
               <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs space-y-1 font-light">
                 <div className="flex gap-2 items-start">
                   <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
@@ -2236,8 +2270,13 @@ export default function StaffPortal({
             purchaseCosts: paidPurchaseCosts + unpaidPurchaseCosts
           };
 
-          const totalBusinessExpenses = totals.totalCommission + totals.totalTaxes + totals.managementFees + totals.purchaseCosts;
-          // Winstpotje = Totaal Brutowinst - Alle kosten (Werknemers, Belastingen, Management & Inkoopkosten)
+          // Bonus calculations
+          const totalPaidBonuses = bonuses.filter(b => b.paid).reduce((sum, b) => sum + b.amount, 0);
+          const totalUnpaidBonuses = bonuses.filter(b => !b.paid).reduce((sum, b) => sum + b.amount, 0);
+          const totalBonuses = bonuses.reduce((sum, b) => sum + b.amount, 0);
+
+          const totalBusinessExpenses = totals.totalCommission + totals.totalTaxes + totals.managementFees + totals.purchaseCosts + totalPaidBonuses;
+          // Winstpotje = Totaal Brutowinst - Alle kosten (Werknemers, Belastingen, Management, Inkoopkosten + Uitbetaalde Bonussen)
           const winstPotjeBalance = totals.grossRevenue - totalBusinessExpenses;
 
           // Compute individual employee statistics
@@ -2473,7 +2512,284 @@ export default function StaffPortal({
           return (
             <div className="space-y-8 animate-fade-in font-mono text-xs text-slate-300">
               
-              {/* Row 1: Big KPI Cards */}
+              {/* Administration Sub-Tabs */}
+              <div className="flex border-b border-slate-905 pb-0 gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setAdminSubTab("overzicht")}
+                  className={`px-5 py-3 border-b-2 font-display text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    adminSubTab === "overzicht"
+                      ? "border-amber-500 text-amber-500"
+                      : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Boekhouding & Tarieven Overzicht
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdminSubTab("bonussen")}
+                  className={`px-5 py-3 border-b-2 font-display text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    adminSubTab === "bonussen"
+                      ? "border-amber-500 text-amber-500"
+                      : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Persoonlijke Bonussen Uitschrijven
+                </button>
+              </div>
+
+              {adminSubTab === "bonussen" ? (
+                <div className="space-y-6">
+                  {/* Row 1: Bonus KPI Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* KPI 1: Totaal Uitgeschreven */}
+                    <div className="bg-slate-950 border border-slate-850 p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+                      <div className="absolute -right-4 -bottom-4 opacity-5 text-amber-500">
+                        <Coins className="h-24 w-24" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-450 uppercase tracking-widest font-sans font-bold">Totaal Toegewezen Bonussen</span>
+                        <h4 className="text-2xl font-black text-white mt-2">€{totalBonuses.toLocaleString("nl-NL")}</h4>
+                      </div>
+                      <span className="text-[9px] text-slate-500 font-sans mt-2 block">{bonuses.length} bonussen geregistreerd</span>
+                    </div>
+
+                    {/* KPI 2: Uitbetaald */}
+                    <div className="bg-slate-950 border border-slate-850 p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+                      <div className="absolute -right-4 -bottom-4 opacity-5 text-emerald-500">
+                        <CheckCircle className="h-24 w-24" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-450 uppercase tracking-widest font-sans font-bold">Uitbetaalde Bonussen</span>
+                        <h4 className="text-2xl font-black text-emerald-450 mt-2">€{totalPaidBonuses.toLocaleString("nl-NL")}</h4>
+                      </div>
+                      <span className="text-[9px] text-emerald-500/80 font-sans mt-2 block">{bonuses.filter(b => b.paid).length} voldaan</span>
+                    </div>
+
+                    {/* KPI 3: Openstaand */}
+                    <div className="bg-slate-950 border border-slate-850 p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+                      <div className="absolute -right-4 -bottom-4 opacity-5 text-rose-500">
+                        <AlertCircle className="h-24 w-24" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-450 uppercase tracking-widest font-sans font-bold">Openstaande Bonussen</span>
+                        <h4 className="text-2xl font-black text-amber-500 mt-2">€{totalUnpaidBonuses.toLocaleString("nl-NL")}</h4>
+                      </div>
+                      <span className="text-[9px] text-amber-550 font-sans mt-2 block">{bonuses.filter(b => !b.paid).length} in afwachting</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    {/* Left side: Add Bonus Form */}
+                    <div className="lg:col-span-4 bg-slate-950 border border-slate-850 p-6 rounded-3xl space-y-4">
+                      <div className="border-b border-slate-900 pb-3">
+                        <h3 className="font-display font-semibold text-base text-white text-left">Bonus Toekennen</h3>
+                        <p className="text-[10px] text-slate-450 mt-1 font-sans text-left">Stel handmatig een prestatiebonus of premie in voor een werknemer.</p>
+                      </div>
+
+                      {bonusSuccessMessage && (
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-xl text-[11px] font-sans flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 shrink-0 text-emerald-500" />
+                          <span>{bonusSuccessMessage}</span>
+                        </div>
+                      )}
+
+                      {bonusErrorMessage && (
+                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 rounded-xl text-[11px] font-sans flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
+                          <span>{bonusErrorMessage}</span>
+                        </div>
+                      )}
+
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!bonusRecipient) {
+                          setBonusErrorMessage("Selecteer een geldige medewerker.");
+                          return;
+                        }
+                        const amt = parseFloat(bonusAmount);
+                        if (isNaN(amt) || amt <= 0) {
+                          setBonusErrorMessage("Voer een positief bonusbedrag in.");
+                          return;
+                        }
+                        if (!bonusReason.trim()) {
+                          setBonusErrorMessage("Voer a.u.b. een reden of verantwoording in.");
+                          return;
+                        }
+
+                        const newBonus: Bonus = {
+                          id: `BON-${Date.now().toString().slice(-6)}`,
+                          recipientName: bonusRecipient,
+                          amount: amt,
+                          reason: bonusReason,
+                          issuedBy: fullname || loggedInUser?.fullname || "Directie",
+                          issuedAt: new Date().toISOString(),
+                          paid: false
+                        };
+
+                        const updated = [newBonus, ...bonuses];
+                        onUpdateBonuses(updated);
+
+                        setBonusSuccessMessage(`€${amt.toLocaleString("nl-NL")} bonus succesvol uitgeschreven voor ${bonusRecipient}!`);
+                        setBonusErrorMessage(null);
+                        setBonusRecipient("");
+                        setBonusAmount("");
+                        setBonusReason("");
+                        if (typeof setPortalAlertMessage === "function") {
+                          setPortalAlertMessage(`Bonus ${newBonus.id} succesvol aangemaakt!`);
+                        }
+                      }} className="space-y-4 text-left">
+                        {/* Selector */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Kies Medewerker:</label>
+                          <select
+                            value={bonusRecipient}
+                            onChange={(e) => setBonusRecipient(e.target.value)}
+                            className="w-full bg-[#020617] border border-slate-850 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500 font-sans"
+                            required
+                          >
+                            <option value="">-- Kies Medewerker --</option>
+                            {uniqueTeachersList.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Amount */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Bonus Bedrag (€):</label>
+                          <input
+                            type="number"
+                            placeholder="bijv: 25000"
+                            value={bonusAmount}
+                            onChange={(e) => setBonusAmount(e.target.value)}
+                            className="w-full bg-[#020617] border border-slate-850 rounded-xl px-3 py-2 text-white font-mono outline-none focus:border-amber-500"
+                            required
+                          />
+                        </div>
+
+                        {/* Reason */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Reden / Omschrijving:</label>
+                          <textarea
+                            rows={3}
+                            placeholder="Reden voor de bonus..."
+                            value={bonusReason}
+                            onChange={(e) => setBonusReason(e.target.value)}
+                            className="w-full bg-[#020617] border border-slate-850 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500 font-sans text-xs"
+                            required
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-sans font-bold uppercase tracking-wider text-xs py-3 rounded-xl cursor-pointer transition-all shadow-lg shadow-amber-500/10 flex items-center justify-center gap-1.5"
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                          <span>Schrijf Bonus Uit</span>
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Right side: Bonuses list */}
+                    <div className="lg:col-span-8 bg-slate-950 border border-slate-850 p-6 rounded-3xl">
+                      <div className="border-b border-slate-900 pb-3 mb-4 flex justify-between items-center">
+                        <div>
+                          <h3 className="font-display font-semibold text-base text-white text-left">Geregistreerde Bonussen</h3>
+                          <p className="text-[10px] text-slate-450 font-sans mt-0.5 text-left">Overzicht van handmatige bonussen.</p>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono">Totaal: {bonuses.length}</span>
+                      </div>
+
+                      {bonuses.length === 0 ? (
+                        <div className="p-12 text-center text-slate-500 text-xs border border-dashed border-slate-850 rounded-2xl bg-slate-900/10 font-sans">
+                          Er zijn nog geen handmatige bonussen of premies uitgeschreven in de database.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-slate-900 text-slate-500 text-[10px] uppercase font-bold">
+                                <th className="py-2.5 px-3">BonID</th>
+                                <th className="py-2.5 px-3 font-sans">Medewerker</th>
+                                <th className="py-2.5 px-3 font-sans">Verantwoording</th>
+                                <th className="py-2.5 px-3">Bedrag</th>
+                                <th className="py-2.5 px-3 font-sans">Aangemaakt Door</th>
+                                <th className="py-2.5 px-3 text-center">Status & Actie</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-900/60 text-slate-350">
+                              {bonuses.map((b) => (
+                                <tr key={b.id} className="hover:bg-slate-900/20 font-mono transition-all text-[11px]">
+                                  <td className="py-3 px-3 font-bold text-amber-500">{b.id}</td>
+                                  <td className="py-3 px-3 font-sans font-semibold text-white">{b.recipientName}</td>
+                                  <td className="py-3 px-3 font-sans text-slate-400 text-left whitespace-normal max-w-[200px] break-words">
+                                    {b.reason}
+                                    <div className="text-[9px] text-slate-500 mt-0.5">
+                                      {new Date(b.issuedAt).toLocaleDateString("nl-NL", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric"
+                                      })}
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3 font-bold text-white">€{b.amount.toLocaleString("nl-NL")}</td>
+                                  <td className="py-3 px-3 font-sans text-slate-400">{b.issuedBy}</td>
+                                  <td className="py-3 px-3">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updated = bonuses.map(item => {
+                                            if (item.id === b.id) {
+                                              return { ...item, paid: !item.paid };
+                                            }
+                                            return item;
+                                          });
+                                          onUpdateBonuses(updated);
+                                          if (typeof setPortalAlertMessage === "function") {
+                                            setPortalAlertMessage("Bonus status veranderd!");
+                                          }
+                                        }}
+                                        className={`px-2.5 py-1 rounded text-[9px] font-bold font-sans uppercase transition-all cursor-pointer ${
+                                          b.paid
+                                            ? "bg-emerald-500/10 text-emerald-450 border border-emerald-500/20"
+                                            : "bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500 hover:text-slate-950"
+                                        }`}
+                                      >
+                                        {b.paid ? "✓ Betaald" : "Uitbetalen"}
+                                      </button>
+                                      
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Weet u zeker dat u bonus ${b.id} voor ${b.recipientName} wilt verwijderen?`)) {
+                                            const updated = bonuses.filter(item => item.id !== b.id);
+                                            onUpdateBonuses(updated);
+                                            if (typeof setPortalAlertMessage === "function") {
+                                              setPortalAlertMessage("Bonus verwijderd.");
+                                            }
+                                          }
+                                        }}
+                                        className="text-slate-500 hover:text-rose-500 p-1 rounded transition-colors cursor-pointer"
+                                        title="Verwijderen"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Row 1: Big KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 
                 {/* Winstpotje Glowing Bank Vault */}
@@ -2731,6 +3047,10 @@ export default function StaffPortal({
                     <div className="flex justify-between py-1.5">
                       <span>Belastingen gedragen:</span>
                       <strong className="text-emerald-400">€{totals.paidTaxes.toLocaleString("nl-NL")}</strong>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-t border-slate-900">
+                      <span>Uitbetaalde bonussen:</span>
+                      <strong className="text-amber-500">€{totalPaidBonuses.toLocaleString("nl-NL")}</strong>
                     </div>
                   </div>
                 </div>
@@ -3671,6 +3991,8 @@ export default function StaffPortal({
                 </div>
               </div>
 
+                </>
+              )}
             </div>
           );
         })()}
