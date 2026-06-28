@@ -48,9 +48,14 @@ export default function App() {
     return Math.random().toString(36).substring(2, 11) + "_" + Date.now().toString().slice(-4);
   }, []);
   const isLoggedInRef = React.useRef(isLoggedIn);
+  const loggedInUserRef = React.useRef(loggedInUser);
+  const sessionRegisteredRef = React.useRef(false);
   React.useEffect(() => {
     isLoggedInRef.current = isLoggedIn;
   }, [isLoggedIn]);
+  React.useEffect(() => {
+    loggedInUserRef.current = loggedInUser;
+  }, [loggedInUser]);
   
   // Direct and manager control states
   const [issuedLicenses, setIssuedLicenses] = React.useState<IssuedLicense[]>([]);
@@ -188,16 +193,25 @@ export default function App() {
         if (response.ok && isMounted) {
           const data = await response.json();
 
-          // KICK STATE MONITORING: If someone else logged in on another device or tab
-          if (isLoggedInRef.current && data.activeSessionId && data.activeSessionId !== currentSessionToken) {
-            console.warn("Kicked out! Someone else logged in:", data.activeSessionUser);
+          // KICK STATE MONITORING: If someone else logged in on another device or tab as the SAME user account
+          const myUserId = loggedInUserRef.current?.id;
+          const userSession = myUserId && data.activeSessions ? data.activeSessions[myUserId] : null;
+
+          if (
+            isLoggedInRef.current &&
+            sessionRegisteredRef.current &&
+            userSession &&
+            userSession.sessionId !== currentSessionToken
+          ) {
+            console.warn("Kicked out! Someone else logged in to your account:", userSession.username);
             setIsLoggedIn(false);
             setRole(null);
             setLoggedInUser(null);
             setFullname("");
             setKickedOutMessage(
-              `U bent automatisch uitgelogd omdat een andere gebruiker (${data.activeSessionUser || "onbekend"}) zojuist elders heeft ingelogd.`
+              `U bent automatisch uitgelogd omdat uw account zojuist elders is ingelogd.`
             );
+            sessionRegisteredRef.current = false;
             return;
           }
 
@@ -333,6 +347,7 @@ export default function App() {
     bonuses?: Bonus[];
     activeSessionId?: string | null;
     activeSessionUser?: string | null;
+    activeSessions?: Record<string, any>;
   }) => {
     try {
       await fetch("/api/portal-data", {
@@ -347,14 +362,39 @@ export default function App() {
 
   // Register session when locally logging in
   React.useEffect(() => {
+    let active = true;
     if (isLoggedIn && loggedInUser) {
-      console.log("Registering active session validation id:", currentSessionToken);
+      console.log("Registering active session validation id:", currentSessionToken, "for user:", loggedInUser.username);
+      sessionRegisteredRef.current = false;
       saveSharedPortalData({
-        activeSessionId: currentSessionToken,
-        activeSessionUser: fullname || loggedInUser.fullname || loggedInUser.username || "Gast"
+        activeSessions: {
+          [loggedInUser.id]: {
+            sessionId: currentSessionToken,
+            username: fullname || loggedInUser.fullname || loggedInUser.username || "Gast",
+            lastActive: Date.now()
+          }
+        }
+      }).then(() => {
+        if (active) {
+          console.log("Active session registered successfully on server!");
+          sessionRegisteredRef.current = true;
+        }
       });
+    } else {
+      sessionRegisteredRef.current = false;
     }
-  }, [isLoggedIn, loggedInUser, currentSessionToken]);
+
+    return () => {
+      active = false;
+      if (loggedInUser) {
+        saveSharedPortalData({
+          activeSessions: {
+            [loggedInUser.id]: null
+          }
+        });
+      }
+    };
+  }, [isLoggedIn, loggedInUser, currentSessionToken, fullname]);
 
   const handleUpdateStaffAccounts = (updatedAccounts: StaffUser[]) => {
     setStaffAccounts(updatedAccounts);
@@ -502,6 +542,16 @@ export default function App() {
     setLogs(updatedLogs);
 
     saveSharedPortalData({ issuedLicenses: updatedLics, logs: updatedLogs });
+  };
+
+  const handleUpdateLicenses = (updatedLics: IssuedLicense[]) => {
+    setIssuedLicenses(updatedLics);
+    try {
+      localStorage.setItem(LICENSES_KEY, JSON.stringify(updatedLics));
+    } catch (e) {
+      console.error("Error saving licenses:", e);
+    }
+    saveSharedPortalData({ issuedLicenses: updatedLics });
   };
 
   const handleClearAllLicenses = () => {
@@ -759,6 +809,7 @@ export default function App() {
               setBonuses(updatedBonuses);
               saveSharedPortalData({ bonuses: updatedBonuses });
             }}
+            onUpdateLicenses={handleUpdateLicenses}
             kickedOutMessage={kickedOutMessage}
             onClearKickedOut={() => setKickedOutMessage(null)}
           />

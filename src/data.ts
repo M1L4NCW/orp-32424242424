@@ -20,7 +20,9 @@ export const DEFAULT_FINANCIAL_CONFIG: FinancialConfig = {
   largePlaneStandardTax: 15000,
   largePlaneGrossTaxRate: 7,
   largePlaneManagementFee: 30000,
-  largePlanePurchaseCost: 300000
+  largePlanePurchaseCost: 300000,
+  
+  managementReceivers: ["Mike"]
 };
 
 

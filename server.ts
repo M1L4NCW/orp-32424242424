@@ -418,7 +418,8 @@ const readLocalFallback = () => {
         logs: parsed.logs || [],
         bonuses: parsed.bonuses || [],
         activeSessionId: parsed.activeSessionId || null,
-        activeSessionUser: parsed.activeSessionUser || null
+        activeSessionUser: parsed.activeSessionUser || null,
+        activeSessions: parsed.activeSessions || {}
       };
     }
   } catch (error) {
@@ -438,7 +439,8 @@ const readLocalFallback = () => {
     logs: [],
     bonuses: [],
     activeSessionId: null,
-    activeSessionUser: null
+    activeSessionUser: null,
+    activeSessions: {}
   };
 };
 
@@ -473,7 +475,8 @@ const readPortalDataAsync = async () => {
           logs: parsed.logs || [],
           bonuses: parsed.bonuses || [],
           activeSessionId: parsed.activeSessionId || null,
-          activeSessionUser: parsed.activeSessionUser || null
+          activeSessionUser: parsed.activeSessionUser || null,
+          activeSessions: parsed.activeSessions || {}
         };
         // Always mirror on disk for robustness
         writeLocalFallback(structured);
@@ -523,8 +526,21 @@ app.post("/api/portal-data", async (req, res) => {
     logs,
     bonuses,
     activeSessionId,
-    activeSessionUser
+    activeSessionUser,
+    activeSessions
   } = req.body;
+
+  const existingActiveSessions = (existing as any).activeSessions || {};
+  let mergedActiveSessions = { ...existingActiveSessions };
+  if (activeSessions !== undefined && activeSessions !== null) {
+    for (const [key, val] of Object.entries(activeSessions)) {
+      if (val === null) {
+        delete mergedActiveSessions[key];
+      } else {
+        mergedActiveSessions[key] = val;
+      }
+    }
+  }
 
   const updated = {
     issuedLicenses: issuedLicenses !== undefined ? issuedLicenses : existing.issuedLicenses,
@@ -540,7 +556,8 @@ app.post("/api/portal-data", async (req, res) => {
     logs: logs !== undefined ? logs : existing.logs,
     bonuses: bonuses !== undefined ? bonuses : (existing as any).bonuses || [],
     activeSessionId: activeSessionId !== undefined ? activeSessionId : (existing as any).activeSessionId || null,
-    activeSessionUser: activeSessionUser !== undefined ? activeSessionUser : (existing as any).activeSessionUser || null
+    activeSessionUser: activeSessionUser !== undefined ? activeSessionUser : (existing as any).activeSessionUser || null,
+    activeSessions: mergedActiveSessions
   };
 
   await writePortalDataAsync(updated);

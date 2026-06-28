@@ -25,6 +25,7 @@ interface StaffPortalProps {
   onAddLicense: (lic: IssuedLicense) => void;
   onRemoveLicense: (id: string) => void;
   onUpdateLicense: (lic: IssuedLicense) => void;
+  onUpdateLicenses?: (lics: IssuedLicense[]) => void;
   onClearAllLicenses?: () => void;
   inventory: AircraftInventory[];
   onUpdateInventory: (updated: AircraftInventory[]) => void;
@@ -185,6 +186,7 @@ export default function StaffPortal({
   onAddLicense, 
   onRemoveLicense,
   onUpdateLicense,
+  onUpdateLicenses,
   onClearAllLicenses,
   inventory, 
   onUpdateInventory,
@@ -362,6 +364,12 @@ export default function StaffPortal({
   const [largePlaneManagementFee, setLargePlaneManagementFee] = React.useState(financialConfig?.largePlaneManagementFee ?? 30000);
   const [largePlanePurchaseCost, setLargePlanePurchaseCost] = React.useState(financialConfig?.largePlanePurchaseCost ?? 300000);
 
+  const [managementReceivers, setManagementReceivers] = React.useState<string[]>(
+    financialConfig?.managementReceivers ?? ["Mike"]
+  );
+  const [isEditingReceivers, setIsEditingReceivers] = React.useState(false);
+  const [newReceiverName, setNewReceiverName] = React.useState("");
+
   const [financialSaveSuccess, setFinancialSaveSuccess] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -386,6 +394,8 @@ export default function StaffPortal({
       setLargePlaneGrossTaxRate(financialConfig.largePlaneGrossTaxRate);
       setLargePlaneManagementFee(financialConfig.largePlaneManagementFee);
       setLargePlanePurchaseCost(financialConfig.largePlanePurchaseCost);
+
+      setManagementReceivers(financialConfig.managementReceivers ?? ["Mike"]);
     }
   }, [financialConfig]);
 
@@ -2355,21 +2365,29 @@ export default function StaffPortal({
             }
 
             const executeManagementPayment = () => {
-              // Set managementFeePaid = true for all licenses and trigger update
-              issuedLicenses.forEach(lic => {
+              // Set managementFeePaid = true for all licenses and trigger a single bulk update
+              const updatedLics = issuedLicenses.map(lic => {
                 if (!lic.managementFeePaid) {
-                  onUpdateLicense({
-                    ...lic,
-                    managementFeePaid: true
-                  });
+                  return { ...lic, managementFeePaid: true };
                 }
+                return lic;
               });
 
-              setPortalAlertMessage("De openstaande management fees zijn met succes overgeboekt naar Mike (€" + ((totals.unpaidManagementFees / 2).toLocaleString("nl-NL")) + ") en Ron (€" + ((totals.unpaidManagementFees / 2).toLocaleString("nl-NL")) + ")!");
+              if (onUpdateLicenses) {
+                onUpdateLicenses(updatedLics);
+              } else {
+                updatedLics.forEach(lic => onUpdateLicense(lic));
+              }
+
+              const receiverNames = managementReceivers.join(" en ");
+              const amountPerPerson = totals.unpaidManagementFees / Math.max(1, managementReceivers.length);
+              setPortalAlertMessage(`De openstaande management fees zijn met succes overgeboekt naar ${receiverNames} (€${amountPerPerson.toLocaleString("nl-NL")} per persoon)!`);
             };
 
+            const receiverNames = managementReceivers.join(" en ");
+            const amountPerPerson = totals.unpaidManagementFees / Math.max(1, managementReceivers.length);
             const confirmPayment = window.confirm(
-              `Weet u zeker dat u de openstaande management fees van €${totals.unpaidManagementFees.toLocaleString("nl-NL")} wilt uitbetalen aan de directie? Dit splitst in €${(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")} voor Mike en €${(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")} voor Ron. Dit reset de openstaande teller naar €0.`
+              `Weet u zeker dat u de openstaande management fees van €${totals.unpaidManagementFees.toLocaleString("nl-NL")} wilt uitbetalen aan de directie? Dit splitst in €${amountPerPerson.toLocaleString("nl-NL")} per persoon voor: ${receiverNames}. Dit reset de openstaande teller naar €0.`
             );
             if (confirmPayment) {
               executeManagementPayment();
@@ -2388,15 +2406,19 @@ export default function StaffPortal({
             }
 
             const executeTaxPayment = () => {
-              // Set taxPaid = true for all licenses and trigger update
-              issuedLicenses.forEach(lic => {
+              // Set taxPaid = true for all licenses and trigger a single bulk update
+              const updatedLics = issuedLicenses.map(lic => {
                 if (!lic.taxPaid) {
-                  onUpdateLicense({
-                    ...lic,
-                    taxPaid: true
-                  });
+                  return { ...lic, taxPaid: true };
                 }
+                return lic;
               });
+
+              if (onUpdateLicenses) {
+                onUpdateLicenses(updatedLics);
+              } else {
+                updatedLics.forEach(lic => onUpdateLicense(lic));
+              }
 
               // Reset tax countdown to 14 days from now
               const nextDueDate = Date.now() + 14 * 24 * 60 * 60 * 1000;
@@ -2464,7 +2486,9 @@ export default function StaffPortal({
                 largePlaneStandardTax: Number(largePlaneStandardTax),
                 largePlaneGrossTaxRate: Number(largePlaneGrossTaxRate),
                 largePlaneManagementFee: Number(largePlaneManagementFee),
-                largePlanePurchaseCost: Number(largePlanePurchaseCost)
+                largePlanePurchaseCost: Number(largePlanePurchaseCost),
+                
+                managementReceivers: managementReceivers
               });
               setFinancialSaveSuccess("Financiële tarieven en medewerkerslonen succesvol opgeslagen en gesynchroniseerd!");
               setTimeout(() => setFinancialSaveSuccess(null), 6000);
@@ -2502,7 +2526,9 @@ export default function StaffPortal({
                 largePlaneStandardTax: 15000,
                 largePlaneGrossTaxRate: 7,
                 largePlaneManagementFee: 30000,
-                largePlanePurchaseCost: 300000
+                largePlanePurchaseCost: 300000,
+                
+                managementReceivers: ["Mike"]
               };
               onUpdateFinancialConfig(defaults);
               setPortalAlertMessage("De tarieven en loonsystemen zijn teruggezet naar de vliegschool standaarden!");
@@ -2972,14 +2998,20 @@ export default function StaffPortal({
                   </div>
                 </div>
 
-                {/* Management Fees (Mike & Ron) Card */}
+                {/* Management Fees Card */}
                 <div className="bg-slate-950 border border-slate-850 rounded-3xl p-6 flex flex-col justify-between min-h-[180px]">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-amber-500 uppercase tracking-widest font-bold font-sans bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/10">
                         Management Fees
                       </span>
-                      <span className="text-[10px] text-slate-400">15k Mike + 15k Ron p.b.</span>
+                      <span className="text-[10px] text-slate-400">
+                        {managementReceivers.length === 0
+                          ? "Geen ontvangers"
+                          : managementReceivers.length === 1
+                          ? `15k ${managementReceivers[0]} p.b.`
+                          : `${(30 / managementReceivers.length).toFixed(1).replace(".0", "")}k per persoon p.b.`}
+                      </span>
                     </div>
                     
                     <div className="mt-4">
@@ -2991,31 +3023,130 @@ export default function StaffPortal({
                   </div>
 
                   <div className="pt-3 border-t border-slate-900/40 space-y-2">
-                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-450">
-                      <span>Mike (Openstaand):</span>
-                      <strong className="text-slate-200">
-                        €{(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")}
-                      </strong>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-450">
-                      <span>Ron (Openstaand):</span>
-                      <strong className="text-slate-200">
-                        €{(totals.unpaidManagementFees / 2).toLocaleString("nl-NL")}
-                      </strong>
-                    </div>
-
-                    {(role === "owner" || role === "manager") && totals.unpaidManagementFees > 0 ? (
-                      <button
-                        onClick={handlePayManagementFeesSubmit}
-                        type="button"
-                        className="w-full mt-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 font-bold font-mono tracking-wider text-[10px] uppercase rounded-lg py-2 cursor-pointer shadow-lg shadow-amber-500/15"
-                      >
-                        Voldoe Directie Fees
-                      </button>
-                    ) : (
-                      <div className="text-center text-[10px] text-emerald-400 mt-2 border border-emerald-500/10 bg-emerald-500/5 p-1 rounded font-bold uppercase">
-                        ✓ Fees overgeboekt
+                    {isEditingReceivers ? (
+                      <div className="space-y-2 text-left">
+                        <div className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Ontvangers Aanpassen:</div>
+                        <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
+                          {managementReceivers.length === 0 ? (
+                            <div className="text-[10px] text-slate-500 italic py-1">Geen ontvangers ingesteld. Voeg hieronder toe.</div>
+                          ) : (
+                            managementReceivers.map((receiver, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg text-xs">
+                                <span className="text-slate-200 font-mono text-[11px]">{receiver}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = managementReceivers.filter(r => r !== receiver);
+                                    setManagementReceivers(next);
+                                  }}
+                                  className="text-rose-500 hover:text-rose-400 font-sans font-bold px-1 text-sm leading-none cursor-pointer"
+                                  title="Verwijder"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                        <div className="flex gap-1 pt-1">
+                          <input
+                            type="text"
+                            placeholder="Nieuwe ontvanger..."
+                            value={newReceiverName}
+                            onChange={(e) => setNewReceiverName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (newReceiverName.trim()) {
+                                  if (!managementReceivers.includes(newReceiverName.trim())) {
+                                    setManagementReceivers([...managementReceivers, newReceiverName.trim()]);
+                                  }
+                                  setNewReceiverName("");
+                                }
+                              }
+                            }}
+                            className="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] font-sans text-white focus:outline-none focus:border-amber-500 grow"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newReceiverName.trim()) {
+                                if (!managementReceivers.includes(newReceiverName.trim())) {
+                                  setManagementReceivers([...managementReceivers, newReceiverName.trim()]);
+                                }
+                                setNewReceiverName("");
+                              }
+                            }}
+                            className="bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs font-bold px-2.5 rounded cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="flex gap-1.5 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingReceivers(false);
+                              if (onUpdateFinancialConfig) {
+                                onUpdateFinancialConfig({
+                                  ...financialConfig,
+                                  managementReceivers: managementReceivers
+                                } as any);
+                              }
+                            }}
+                            className="grow bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-[9px] uppercase py-1.5 rounded cursor-pointer transition-colors"
+                          >
+                            Opslaan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingReceivers(false);
+                              setManagementReceivers(financialConfig?.managementReceivers ?? ["Mike"]);
+                            }}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold font-mono text-[9px] uppercase py-1.5 px-2 rounded cursor-pointer transition-colors"
+                          >
+                            Annuleer
+                          </button>
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        {managementReceivers.map((receiver) => (
+                          <div key={receiver} className="flex items-center justify-between text-[11px] font-mono text-slate-450">
+                            <span>{receiver} (Openstaand):</span>
+                            <strong className="text-slate-200">
+                              €{(totals.unpaidManagementFees / Math.max(1, managementReceivers.length)).toLocaleString("nl-NL")}
+                            </strong>
+                          </div>
+                        ))}
+                        
+                        {(role === "owner" || role === "manager") && (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingReceivers(true)}
+                              className="w-full text-slate-400 hover:text-white border border-slate-800/60 hover:border-slate-700 bg-slate-900/50 rounded-lg py-1 text-[9px] uppercase font-mono font-bold transition-all cursor-pointer"
+                            >
+                              ✍ Ontvangers Wijzigen ({managementReceivers.length})
+                            </button>
+                          </div>
+                        )}
+
+                        {(role === "owner" || role === "manager") && totals.unpaidManagementFees > 0 ? (
+                          <button
+                            onClick={handlePayManagementFeesSubmit}
+                            type="button"
+                            className="w-full mt-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 font-bold font-mono tracking-wider text-[10px] uppercase rounded-lg py-2 cursor-pointer shadow-lg shadow-amber-500/15"
+                          >
+                            Voldoe Directie Fees
+                          </button>
+                        ) : (
+                          <div className="text-center text-[10px] text-emerald-400 mt-2 border border-emerald-500/10 bg-emerald-500/5 p-1 rounded font-bold uppercase">
+                            ✓ Fees overgeboekt
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

@@ -141,6 +141,8 @@ export interface FinancialConfig {
   largePlaneGrossTaxRate: number; // percentage (e.g. 7 for 7%)
   largePlaneManagementFee: number;
   largePlanePurchaseCost: number;
+
+  managementReceivers?: string[];
 }
 
 export interface KluHandbookChapter {
