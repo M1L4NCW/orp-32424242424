@@ -1,0 +1,334 @@
+{
+  "issuedLicenses": [
+    {
+      "citizenName": "Martin Vasilyev",
+      "id": "lic-6625",
+      "taxPaid": true,
+      "managementFeePaid": true,
+      "issuedBy": "Mike",
+      "issueDate": "6-6-2026",
+      "licenseType": "large-plane",
+      "employeeCommissionPaid": true,
+      "citizenId": "BSN-85145495"
+    },
+    {
+      "citizenId": "BSN-86551022",
+      "employeeCommissionPaid": false,
+      "licenseType": "helicopter",
+      "issueDate": "4-6-2026",
+      "issuedBy": "Military_Touch",
+      "managementFeePaid": false,
+      "remarks": "Cursist is geslaagd",
+      "taxPaid": false,
+      "id": "lic-3965",
+      "citizenName": "Dwayne The Rock"
+    },
+    {
+      "taxPaid": false,
+      "remarks": "Mooie landing na de tip die ik heb gegeven. Kan goed vliegen.",
+      "id": "lic-3999",
+      "citizenName": "Ian Foster",
+      "citizenId": "BSN-51213775",
+      "licenseType": "large-plane",
+      "employeeCommissionPaid": true,
+      "issueDate": "3-6-2026",
+      "issuedBy": "Yahro",
+      "managementFeePaid": false
+    },
+    {
+      "citizenName": "Jason White",
+      "taxPaid": false,
+      "remarks": "Cursist is geslaagd",
+      "id": "lic-2022",
+      "issueDate": "3-6-2026",
+      "managementFeePaid": false,
+      "issuedBy": "Military_Touch",
+      "citizenId": "BSN-81463127",
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter"
+    },
+    {
+      "issueDate": "3-6-2026",
+      "issuedBy": "Military_Touch",
+      "managementFeePaid": false,
+      "citizenId": "BSN-10849091",
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter",
+      "citizenName": "Joey Winkelwagen",
+      "remarks": "cursist is geslaagd",
+      "taxPaid": false,
+      "id": "lic-7625"
+    },
+    {
+      "citizenName": "Milan de kok",
+      "remarks": "Cursist is geslaagd",
+      "taxPaid": false,
+      "id": "lic-4015",
+      "issueDate": "3-6-2026",
+      "issuedBy": "Military_Touch",
+      "managementFeePaid": false,
+      "citizenId": "BSN-75683537",
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter"
+    },
+    {
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter",
+      "citizenId": "BSN-58684993",
+      "issuedBy": "Military_Touch",
+      "managementFeePaid": false,
+      "issueDate": "3-6-2026",
+      "id": "lic-3788",
+      "remarks": "Cursist is geslaagd",
+      "taxPaid": false,
+      "citizenName": "Bennie Wies"
+    },
+    {
+      "citizenName": "Zoe Cuore",
+      "id": "lic-3930",
+      "remarks": "Cursist is geslaagd",
+      "taxPaid": false,
+      "issuedBy": "Military_Touch",
+      "managementFeePaid": true,
+      "issueDate": "2-6-2026",
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter",
+      "citizenId": "BSN- 92681628"
+    },
+    {
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter",
+      "citizenId": "BSN-62608820",
+      "managementFeePaid": true,
+      "issuedBy": "Military_Touch",
+      "issueDate": "1-6-2026",
+      "id": "lic-3207",
+      "taxPaid": false,
+      "remarks": "cursist is geslaagd",
+      "citizenName": "Bryan Mehewez"
+    },
+    {
+      "citizenId": "BSN-91931636",
+      "employeeCommissionPaid": true,
+      "licenseType": "large-plane",
+      "issueDate": "1-6-2026",
+      "issuedBy": "Mike",
+      "managementFeePaid": true,
+      "taxPaid": true,
+      "id": "lic-9565",
+      "citizenName": "Adam Mahmoud"
+    },
+    {
+      "licenseType": "large-plane",
+      "employeeCommissionPaid": true,
+      "citizenId": "BSN-32929852",
+      "managementFeePaid": true,
+      "issuedBy": "Mike",
+      "issueDate": "1-6-2026",
+      "id": "lic-3410",
+      "taxPaid": true,
+      "citizenName": "John Frost"
+    },
+    {
+      "issuedByDiscordId": "1087831804775514142",
+      "issuedBy": "Reggie G.",
+      "managementFeePaid": true,
+      "issueDate": "1-6-2026",
+      "licenseType": "helicopter",
+      "employeeCommissionPaid": false,
+      "citizenId": "BSN-NIL",
+      "citizenName": "Keano batsbak",
+      "id": "lic-5464",
+      "taxPaid": true
+    },
+    {
+      "licenseType": "helicopter",
+      "employeeCommissionPaid": false,
+      "citizenId": "BSN-NIL",
+      "issuedByDiscordId": "459230738798346253",
+      "managementFeePaid": true,
+      "issuedBy": "Jens",
+      "issueDate": "1-6-2026",
+      "id": "lic-7924",
+      "taxPaid": true,
+      "citizenName": "Luciano Stof"
+    },
+    {
+      "citizenName": "Adam Mahmoud",
+      "id": "lic-4355",
+      "taxPaid": true,
+      "managementFeePaid": true,
+      "issuedBy": "Mike",
+      "issueDate": "1-6-2026",
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter",
+      "citizenId": "BSN-NIL"
+    },
+    {
+      "taxPaid": true,
+      "id": "lic-7977",
+      "citizenName": "Carlos Bombo",
+      "citizenId": "BSN-NIL",
+      "licenseType": "helicopter",
+      "employeeCommissionPaid": false,
+      "issueDate": "1-6-2026",
+      "issuedByDiscordId": "459230738798346253",
+      "issuedBy": "Jens",
+      "managementFeePaid": true
+    },
+    {
+      "employeeCommissionPaid": false,
+      "licenseType": "helicopter",
+      "citizenId": "BSN-90154099",
+      "issuedBy": "Jens",
+      "managementFeePaid": true,
+      "issuedByDiscordId": "459230738798346253",
+      "issueDate": "1-6-2026",
+      "id": "lic-4272",
+      "taxPaid": true,
+      "citizenName": "Jaya Glauco"
+    },
+    {
+      "citizenName": "Autumn Azc",
+      "id": "lic-4968",
+      "taxPaid": true,
+      "issuedByDiscordId": "1250892233776042128",
+      "issuedBy": "military_touch",
+      "managementFeePaid": true,
+      "issueDate": "1-6-2026",
+      "licenseType": "helicopter",
+      "employeeCommissionPaid": true,
+      "citizenId": "BSN-16849219"
+    },
+    {
+      "licenseType": "helicopter",
+      "employeeCommissionPaid": true,
+      "citizenId": "BSN-85473758",
+      "managementFeePaid": true,
+      "issuedBy": "military_touch",
+      "issuedByDiscordId": "1250892233776042128",
+      "issueDate": "1-6-2026",
+      "id": "lic-3390",
+      "taxPaid": true,
+      "citizenName": "Risemes Soep"
+    },
+    {
+      "issuedByDiscordId": "1250892233776042128",
+      "managementFeePaid": true,
+      "issuedBy": "military_touch",
+      "issueDate": "1-6-2026",
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter",
+      "citizenId": "BSN-93146354",
+      "citizenName": "Vito Glock",
+      "id": "lic-1129",
+      "taxPaid": true
+    },
+    {
+      "id": "lic-9503",
+      "taxPaid": true,
+      "citizenName": "Tom Beuker",
+      "employeeCommissionPaid": true,
+      "licenseType": "helicopter",
+      "citizenId": "BSN-53477119",
+      "issuedByDiscordId": "1250892233776042128",
+      "issuedBy": "military_touch",
+      "managementFeePaid": true,
+      "issueDate": "1-6-2026"
+    }
+  ],
+  "inventory": [
+    {
+      "aircraftId": "heli-r44",
+      "status": "Op voorraad",
+      "stockCount": 3,
+      "isVisible": false
+    },
+    {
+      "status": "Op voorraad",
+      "aircraftId": "plane-c172",
+      "isVisible": false,
+      "stockCount": 5
+    },
+    {
+      "stockCount": 2,
+      "isVisible": false,
+      "status": "Op voorraad",
+      "aircraftId": "plane-c560"
+    }
+  ],
+  "aircraftList": [
+    {
+      "description": "Een uiterst betrouwbare, vierzits lichte helikopter. Ideaal voor trainingsvluchten, luchtfotografie en snelle verplaatsingen rondom Aruba's exclusieve resorts.",
+      "type": "helicopter",
+      "basePrice": 250000,
+      "name": "Robinson R44 Clipper II",
+      "engineType": "Lycoming IO-540-AE1A5 (Zuiger)",
+      "manufacturer": "Robinson Helicopter Company",
+      "imageTheme": "orange-sky",
+      "topSpeedKnots": 110,
+      "rangeKm": 560,
+      "capacity": 4,
+      "id": "heli-r44"
+    },
+    {
+      "topSpeedKnots": 124,
+      "imageTheme": "clear-sky",
+      "rangeKm": 1185,
+      "id": "plane-c172",
+      "capacity": 4,
+      "name": "Cessna Skyhawk 172",
+      "basePrice": 500000,
+      "type": "small-plane",
+      "description": "De legendarische klassieker. Wereldwijd de absolute nummer één voor pilotenopleidingen, gekenmerkt door ultieme vergevingsgezindheid en fantastisch zicht rondom.",
+      "manufacturer": "Cessna Aircraft Company",
+      "engineType": "Lycoming IO-360-L2A (Glass Cockpit)"
+    },
+    {
+      "imageTheme": "sunset-clouds",
+      "topSpeedKnots": 460,
+      "rangeKm": 5900,
+      "id": "plane-c560",
+      "capacity": 12,
+      "description": "De ultieme luxe in de Caribische stratosfeer. Deze executive jet brengt u in recordtijd en in alle rust, comfort en stijl direct naar Miami, New York of Bogota.",
+      "basePrice": 750000,
+      "name": "Cessna Citation Sovereign+",
+      "type": "large-plane",
+      "engineType": "Pratt & Whitney PW306D (Twin-Jet)",
+      "manufacturer": "Textron Aviation"
+    }
+  ],
+  "announcement": "",
+  "googleConnectionType": "webapp",
+  "sheetsWebAppUrl": "",
+  "savedSpreadsheetId": "",
+  "financialConfig": {
+    "smallPlanePurchaseCost": 0,
+    "helicopterStandardTax": 15000,
+    "largePlaneGrossTaxRate": 0,
+    "largePlanePurchaseCost": 0,
+    "helicopterManagementFee": 30000,
+    "helicopterGrossTaxRate": 7,
+    "largePlaneManagementFee": 0,
+    "largePlaneCommission": 80000,
+    "smallPlaneGrossTaxRate": 0,
+    "helicopterPurchaseCost": 100000,
+    "smallPlaneCommission": 60000,
+    "largePlaneStandardTax": 0,
+    "helicopterPrice": 250000,
+    "smallPlaneStandardTax": 0,
+    "smallPlaneManagementFee": 0,
+    "largePlanePrice": 750000,
+    "helicopterCommission": 35000,
+    "smallPlanePrice": 500000
+  },
+  "staffAccounts": [
+    {
+      "username": "mike_cw",
+      "role": "owner",
+      "id": "discord-1057359480418996346",
+      "passwordHash": "LOGGED_IN_VIA_DISCORD",
+      "fullname": "Mike"
+    }
+  ]
+}

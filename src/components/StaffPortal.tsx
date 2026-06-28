@@ -3009,8 +3009,8 @@ export default function StaffPortal({
                         {managementReceivers.length === 0
                           ? "Geen ontvangers"
                           : managementReceivers.length === 1
-                          ? `15k ${managementReceivers[0]} p.b.`
-                          : `${(30 / managementReceivers.length).toFixed(1).replace(".0", "")}k per persoon p.b.`}
+                          ? `100% voor ${managementReceivers[0]}`
+                          : `Gelijk verdeeld over ${managementReceivers.length} personen`}
                       </span>
                     </div>
                     
@@ -3048,10 +3048,37 @@ export default function StaffPortal({
                             ))
                           )}
                         </div>
+                        
+                        {/* Quick select list of staff accounts */}
+                        {staffAccounts.filter(acc => !managementReceivers.includes(acc.fullname)).length > 0 && (
+                          <div className="mt-1 bg-slate-900/40 p-2 rounded-xl border border-slate-800/80">
+                            <label className="text-[8px] text-slate-400 uppercase font-bold tracking-wider block mb-1">Direct toevoegen:</label>
+                            <div className="flex flex-wrap gap-1 max-h-[60px] overflow-y-auto">
+                              {staffAccounts
+                                .filter(acc => !managementReceivers.includes(acc.fullname))
+                                .map(acc => (
+                                  <button
+                                    key={acc.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (!managementReceivers.includes(acc.fullname)) {
+                                        setManagementReceivers([...managementReceivers, acc.fullname]);
+                                      }
+                                    }}
+                                    className="bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-300 text-[9px] px-2 py-0.5 rounded transition-all cursor-pointer font-sans"
+                                  >
+                                    + {acc.fullname}
+                                  </button>
+                                ))
+                              }
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex gap-1 pt-1">
                           <input
                             type="text"
-                            placeholder="Nieuwe ontvanger..."
+                            placeholder="Handmatig naam toevoegen..."
                             value={newReceiverName}
                             onChange={(e) => setNewReceiverName(e.target.value)}
                             onKeyDown={(e) => {
@@ -3172,7 +3199,7 @@ export default function StaffPortal({
                       <strong className="text-slate-200">€{totals.totalCommission.toLocaleString("nl-NL")}</strong>
                     </div>
                     <div className="flex justify-between py-1.5">
-                      <span>Management fee (2x 15k):</span>
+                      <span>Management fee ({managementReceivers.length > 0 ? `${managementReceivers.length} pers.` : "0 pers."}):</span>
                       <strong className="text-slate-200">€{totals.managementFees.toLocaleString("nl-NL")}</strong>
                     </div>
                     <div className="flex justify-between py-1.5">
@@ -5199,7 +5226,9 @@ export default function StaffPortal({
                   <div className="bg-slate-900/60 border border-slate-850 p-3 rounded-2xl flex items-center justify-between col-span-1 md:col-span-2">
                     <div>
                       <span className="font-semibold text-white block text-[11px]">Management Fee voldaan</span>
-                      <span className="text-[9px] text-slate-500">Zijn de Directie fees (€15k Mike + €15k Ron) voldaan?</span>
+                      <span className="text-[9px] text-slate-500">
+                        Zijn de Directie fees ({managementReceivers.length > 0 ? `verdeeld over: ${managementReceivers.join(", ")}` : "geen ontvangers ingesteld"}) voldaan?
+                      </span>
                     </div>
                     <input
                       type="checkbox"

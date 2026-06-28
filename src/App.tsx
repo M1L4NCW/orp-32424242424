@@ -44,18 +44,6 @@ export default function App() {
   
   // Session collision & dynamic kick-out states
   const [kickedOutMessage, setKickedOutMessage] = React.useState<string | null>(null);
-  const currentSessionToken = React.useMemo(() => {
-    return Math.random().toString(36).substring(2, 11) + "_" + Date.now().toString().slice(-4);
-  }, []);
-  const isLoggedInRef = React.useRef(isLoggedIn);
-  const loggedInUserRef = React.useRef(loggedInUser);
-  const sessionRegisteredRef = React.useRef(false);
-  React.useEffect(() => {
-    isLoggedInRef.current = isLoggedIn;
-  }, [isLoggedIn]);
-  React.useEffect(() => {
-    loggedInUserRef.current = loggedInUser;
-  }, [loggedInUser]);
   
   // Direct and manager control states
   const [issuedLicenses, setIssuedLicenses] = React.useState<IssuedLicense[]>([]);
@@ -193,28 +181,8 @@ export default function App() {
         if (response.ok && isMounted) {
           const data = await response.json();
 
-          // KICK STATE MONITORING: If someone else logged in on another device or tab as the SAME user account
-          const myUserId = loggedInUserRef.current?.id;
-          const userSession = myUserId && data.activeSessions ? data.activeSessions[myUserId] : null;
-
-          if (
-            isLoggedInRef.current &&
-            sessionRegisteredRef.current &&
-            userSession &&
-            userSession.sessionId !== currentSessionToken
-          ) {
-            console.warn("Kicked out! Someone else logged in to your account:", userSession.username);
-            setIsLoggedIn(false);
-            setRole(null);
-            setLoggedInUser(null);
-            setFullname("");
-            setKickedOutMessage(
-              `U bent automatisch uitgelogd omdat uw account zojuist elders is ingelogd.`
-            );
-            sessionRegisteredRef.current = false;
-            return;
-          }
-
+          // Multi-user session kick-out is disabled so multiple users can remain logged in concurrently.
+          
           // Fallback and self-healing: if the server is freshly started (length === 0)
           // but the client has actual records in localstorage, upload them to heal/restore the database.
           if (initialLoad) {
@@ -359,42 +327,6 @@ export default function App() {
       console.error("Fout met opslaan van gedeelde portaalgegevens op server:", e);
     }
   };
-
-  // Register session when locally logging in
-  React.useEffect(() => {
-    let active = true;
-    if (isLoggedIn && loggedInUser) {
-      console.log("Registering active session validation id:", currentSessionToken, "for user:", loggedInUser.username);
-      sessionRegisteredRef.current = false;
-      saveSharedPortalData({
-        activeSessions: {
-          [loggedInUser.id]: {
-            sessionId: currentSessionToken,
-            username: fullname || loggedInUser.fullname || loggedInUser.username || "Gast",
-            lastActive: Date.now()
-          }
-        }
-      }).then(() => {
-        if (active) {
-          console.log("Active session registered successfully on server!");
-          sessionRegisteredRef.current = true;
-        }
-      });
-    } else {
-      sessionRegisteredRef.current = false;
-    }
-
-    return () => {
-      active = false;
-      if (loggedInUser) {
-        saveSharedPortalData({
-          activeSessions: {
-            [loggedInUser.id]: null
-          }
-        });
-      }
-    };
-  }, [isLoggedIn, loggedInUser, currentSessionToken, fullname]);
 
   const handleUpdateStaffAccounts = (updatedAccounts: StaffUser[]) => {
     setStaffAccounts(updatedAccounts);
